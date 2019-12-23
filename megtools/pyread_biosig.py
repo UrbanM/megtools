@@ -772,6 +772,6 @@ def import_opm_trans(fn,name):
 			bd = np.array(bb, dtype=float)
 			i = num_lines
 		i+=1
-	print(ad[0], bd)
+
 	return ad, bd
 
