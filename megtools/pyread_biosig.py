@@ -1,35 +1,67 @@
 def write_squid_hdrflt(data_path, evoked, block_name, template):
 	from shutil import copy
 	import numpy as np
+	import mne
+	import re
 
-	hdr_file = data_path + "/processed/"+block_name+".flt.hdr"
-	flt_file = data_path + "/processed/"+block_name+".flt"
+	hdr_file = data_path + "/processed/"+block_name+"-squid_ave.flt.hdr"
+	flt_file = data_path + "/processed/"+block_name+"-squid_ave.flt"
 	copy(template, hdr_file)
 
 	number_of_samples = evoked.data.shape[1]
 	number_of_gradiometers = evoked.data.shape[0]
+
+	sampling = 1/evoked.info['sfreq']
+	sampling_string = "{:.2e}".format(sampling)
+	sampling_base, sampling_eksponential = re.split('e', sampling_string)
+	sampling_base = np.float(sampling_base)
+	sampling_eksponential = np.int(sampling_eksponential)
 
 	# with is like your try .. finally block in this case
 	with open(hdr_file, 'r') as file:
 		# read a list of lines into data
 		data = file.readlines()
 
-	print(data)
 	search1 = 'name_of_data_file='
 	search2 = 'number_of_samples='
+	search3 = 'sampling_exponent='
+	search4 = 'sampling_step='
 
 	for i in range(len(data)):
 		if search1 in data[i]:
 			block_name1 = block_name.replace('/', '')
-			data[i] = search1 + block_name1 + ".flt\n"
+			data[i] = search1 + block_name1 + "-squid_ave.flt\n"
 
 	for i in range(len(data)):
 		if search2 in data[i]:
 			data[i] = search2 + str(number_of_samples) + "\n"
 
-	data.append('\nmatrix_of_rotation_translation=4\n')
+	for i in range(len(data)):
+		if search3 in data[i]:
+			data[i] = search3 + str(sampling_eksponential) + "\n"
+
+	for i in range(len(data)):
+		if search4 in data[i]:
+			data[i] = search4 + str(sampling_base) + "\n"
+
+	fname_trans = data_path + '/MNE/' + block_name[:5] + '/SQUID/' + block_name + '-trans.fif'
+	head_mri_trans = mne.read_trans(fname_trans)
+	meg_head_trans = evoked.info['dev_head_t']
+
+	data.append('\nrot_matrix_from_head_to_mri=4\n')
 	data.append('*-------------------------------------------------------------------------\n')
-	rot_matrix = evoked.info['dev_head_t']['trans']
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = head_mri_trans['trans']
+	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
+	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
+	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
+	data.append("%.4f" % rot_matrix[3, 0] + "  " + "%.4f" % rot_matrix[3, 1]+ "  " +"%.4f" % rot_matrix[3, 2] + "  " + "%.4f" % rot_matrix[3, 3] +"\n")
+	data.append("}")
+
+	data.append('\nrot_matrix_from_meg_to_head=4\n')
+	data.append('*-------------------------------------------------------------------------\n')
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = meg_head_trans['trans']
 	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
 	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
 	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
@@ -39,24 +71,151 @@ def write_squid_hdrflt(data_path, evoked, block_name, template):
 	with open(hdr_file, 'w') as file:
 		file.writelines(data)
 
-	print(template[:-4])
-
 	no_sa, no_ch, no_se, no_gr, no_mo = imp_hdr_param(hdr_file)
-	flt_data = np.fromfile(template[:-4], dtype=np.float32)
-	nl = float(len(flt_data)) / float(no_ch)
-	nl = int(nl)
-	flt_data = flt_data.reshape(nl, no_ch)
+
+	flt_data = np.zeros((no_sa, no_ch), dtype=np.float32)
+
+	# flt_data = np.fromfile(template[:-4], dtype=np.float32)
+	# nl = float(len(flt_data)) / float(no_ch)
+	# nl = int(nl)
+	# print(nl)
+	# flt_data = flt_data.reshape(nl, no_ch)
 
 	flt_data = flt_data[:number_of_samples, :]
 	for i in range(number_of_gradiometers):
 		flt_data[:, i] = evoked.data[i]
 	flt_data = flt_data.ravel()
-	print(flt_data)
-
 	flt_data.tofile(flt_file)
+	flt_data = np.fromfile(flt_file, dtype=np.float32)
 
 	return
 
+
+def write_opm_hdrflt(data_path, evoked, block_name, template):
+	from shutil import copy
+	import numpy as np
+	import mne
+	import re
+
+	hdr_file = data_path + "/processed/"+block_name+"-opm_ave.flt.hdr"
+	flt_file = data_path + "/processed/"+block_name+"-opm_ave.flt"
+	copy(template, hdr_file)
+
+	number_of_samples = evoked.data.shape[1]
+	number_of_gradiometers = evoked.data.shape[0]
+
+	sampling = 1/evoked.info['sfreq']
+	sampling_string = "{:.2e}".format(sampling)
+	sampling_base, sampling_eksponential = re.split('e', sampling_string)
+	sampling_base = np.float(sampling_base)
+	sampling_eksponential = np.int(sampling_eksponential)
+
+	# with is like your try .. finally block in this case
+	with open(hdr_file, 'r') as file:
+		# read a list of lines into data
+		data = file.readlines()
+
+	search1 = 'name_of_data_file='
+	search2 = 'number_of_samples='
+	search3 = 'sampling_exponent='
+	search4 = 'sampling_step='
+	search5 = 'parameter_of_sensors={'
+	end = '}'
+
+	for i in range(len(data)):
+		if search1 in data[i]:
+			block_name1 = block_name.replace('/', '')
+			data[i] = search1 + block_name1 + "-opm_ave.flt\n"
+
+	for i in range(len(data)):
+		if search2 in data[i]:
+			data[i] = search2 + str(number_of_samples) + "\n"
+
+	for i in range(len(data)):
+		if search3 in data[i]:
+			data[i] = search3 + str(sampling_eksponential) + "\n"
+
+	for i in range(len(data)):
+		if search4 in data[i]:
+			data[i] = search4 + str(sampling_base) + "\n"
+
+	printable = 0
+	jj=0
+	for i in range(len(data)):
+		if search5 in data[i]:
+			printable = 1
+			i+=1
+		if end in data[i] and printable == 1:
+			break
+		if printable == 1:
+			line = data[i]
+			line_parts = re.split('  |m\r\n| ', data[i])
+			if int(line_parts[0]) >= 253 and int(line_parts[0]) <= 282:
+				unit_v = np.array([0.0, 0.0, 1.0])
+				channel = evoked.info['chs'][jj]['loc']
+				rot_matrix = np.array([[channel[3], channel[4], channel[5]],[channel[6], channel[7], channel[8]],[channel[9], channel[10], channel[11]]])
+				vector = np.dot(unit_v.T, rot_matrix)
+				line_parts[4]+='    '
+				line_parts[8]= "{:.5f}".format(channel[0])
+				line_parts[10] = "{:.5f}".format(channel[1])
+				line_parts[12] = "{:.5f}".format(channel[2])
+				line_parts[14] = "{:.5f}".format(vector[0])
+				line_parts[16] = "{:.5f}".format(vector[1])
+				line_parts[18] = "{:.5f}".format(vector[2])
+
+				line = " ".join(line_parts)
+				data[i] = line
+				jj+=1
+
+	with open(hdr_file, 'w') as file:
+		file.writelines(data)
+
+	no_sa, no_ch, no_se, no_gr, no_mo = imp_hdr_param(hdr_file)
+
+	flt_data = np.zeros((no_sa, no_ch), dtype=np.float32)
+
+	flt_data = flt_data[:number_of_samples, :]
+	for i in range(number_of_gradiometers):
+		ii = i + 128
+		flt_data[:, ii] = evoked.data[i]
+	flt_data = flt_data.ravel()
+	flt_data.tofile(flt_file)
+	flt_data = np.fromfile(flt_file, dtype=np.float32)
+
+	return
+
+def imp_trans_matrix(fn):
+	import re
+	import numpy
+	import string
+
+	num_lines = sum(1 for line in open(fn))
+
+	search = 'matrix_of_rotation_translation'
+	end = '}'
+
+	trans_matrix=[]
+
+	F = open(fn, 'r')
+	i = 0
+	while i < num_lines:
+		f = F.readline()
+		if search in f:
+			f = F.readline()
+			break
+		i = i + 1
+
+	while i < num_lines:
+		f = F.readline()
+		if end in f:
+			break
+		ff = re.split('  |m\r\n| ', f)
+		print(ff)
+		trans_matrix.append(ff)
+		i = i + 1
+	trans_matrix = numpy.array(trans_matrix, dtype=numpy.float)
+
+	return trans_matrix
 
 def imp_samp_freq(fn):
 	import re
@@ -289,7 +448,7 @@ def imp_bin_data(fn1, fn2):
 
 def find_bad_channels(data, min_ch, max_ch):
 	import numpy as np
-	import vector_functions_v12 as vfun
+	import megtools.vector_functions as vfun
 
 	odklon = np.zeros(max_ch - min_ch)
 	bad_ch = []
@@ -312,7 +471,7 @@ def find_bad_channels(data, min_ch, max_ch):
 
 def import_squid(header_name, value_name):
 	import numpy as np
-	import meg_filtering_v11 as mfil
+	import megtools.meg_filtering as mfil
 	min_chan = 0
 	max_chan = 125
 	min_sens = 0
@@ -357,7 +516,7 @@ def import_squid(header_name, value_name):
 
 def import_opm(header_name, value_name, bad_opm):
 	import numpy as np
-	import meg_filtering_v11 as mfil
+	import megtools.meg_filtering as mfil
 
 	min_chan = 128
 	max_chan = 158
@@ -431,7 +590,14 @@ def import_sensors(header_name, system):
 		min_sens = 0
 		max_sens = 250
 
-		ch_info = imp_param_channels(header_name)  # seq id u name calib grd grd_name grp n_sensors
+		ch_info = imp_param_channels(header_name) # seq id u name calib grd grd_name grp n_sensors
+		ch_info = np.array(ch_info, dtype="U10")
+		for ii in range(max_chan):
+			true = 'MEG '+ str(ii+1).zfill(3)
+			print(true)
+			ch_info[ii,3] = true
+			print(ch_info[ii,3])
+
 		locations = imp_param_sensors(header_name)
 		sfreq = (imp_samp_freq(header_name))
 		xyz1 = np.array(locations[min_sens:max_sens:2, 4:10], dtype=np.float32)
@@ -462,7 +628,7 @@ def create_topomap(data_path ,system="squid"):
 	default_squid_path = data_path + "ET160_template.0100.flt.hdr"
 	xyz1, xyz2, ch_info, sfreq= import_sensors(default_squid_path, system)
 
-	# print(ch_info)
+	print(ch_info)
 
 	def map_et_coord(xx, yy, zz):
 		# projected helmet coordinates onto a plane
@@ -603,7 +769,7 @@ def imp_sensor_occupied(fn):
 def import_coregistration(landmark_trans, zebris_file):
 	import re
 	import numpy as np
-	import vector_functions_v12 as vfun
+	import megtools.vector_functions as vfun
 
 	import matplotlib.pyplot as plt
 	from mpl_toolkits.mplot3d import Axes3D
@@ -704,7 +870,7 @@ def import_coregistration(landmark_trans, zebris_file):
 def import_coregistration2(zebris_file):
 	import re
 	import numpy as np
-	import vector_functions_v12 as vfun
+	import megtools.vector_functions as vfun
 
 	import matplotlib.pyplot as plt
 	from mpl_toolkits.mplot3d import Axes3D

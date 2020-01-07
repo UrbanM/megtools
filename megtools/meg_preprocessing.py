@@ -1,6 +1,6 @@
 def find_events_AEF(values, times, triger_range):
-	import meg_filtering_v11 as mfil
-	import pymeg_visualize_v14 as pvis
+	import megtools.meg_filtering as mfil
+	import megtools.pymeg_visualize as pvis
 	import matplotlib.pyplot as plt
 	import numpy as np
 
@@ -24,8 +24,8 @@ def find_events_AEF(values, times, triger_range):
 		if values1[j] == 0 and spike_count != 0:
 			spike_count = 0
 
-	# plt.plot(np.array(spikes), np.ones(len(spikes)), 'o')
-	# plt.plot(np.arange(0,len(values1)), values1, '-')
-	# pvis.plot_channel(times, values, "TrigChannel", "signal", "time", None)
-	# plt.show()
+	#plt.plot(np.array(spikes), np.ones(len(spikes)), 'o')
+	#plt.plot(np.arange(0,len(values1)), values1, '-')
+	#pvis.plot_channel(times, values, "TrigChannel", "signal", "time", None)
+	#plt.show()
 	return spikes

@@ -1,3 +1,13 @@
+def plot_topomap_opm_standard(evoked):
+	import matplotlib.pyplot as plt
+
+	return
+
+def plot_topomap_squid_standard(evoked):
+	import matplotlib.pyplot as plt
+
+	return
+
 def squid_butterflyplot(mag, names, freq):
 	import matplotlib.pyplot as plt
 	import numpy as np

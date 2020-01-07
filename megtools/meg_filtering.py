@@ -15,7 +15,7 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
-    import pymeg_visualize_v14 as pvis
+    import megtools.pymeg_visualize as pvis
     from scipy.signal import butter, freqz
     import matplotlib.pyplot as plt
     import numpy as np
