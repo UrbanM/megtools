@@ -28,4 +28,4 @@ def find_events_AEF(values, times, triger_range):
 	#plt.plot(np.arange(0,len(values1)), values1, '-')
 	#pvis.plot_channel(times, values, "TrigChannel", "signal", "time", None)
 	#plt.show()
-	return spikes
+	return np.array(spikes)
