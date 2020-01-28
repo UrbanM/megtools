@@ -91,6 +91,214 @@ def write_squid_hdrflt(data_path, evoked, block_name, template):
 	return
 
 
+def write_uniform_opm_hdrflt(data_path, evoked, block_name, template):
+	from shutil import copy
+	import numpy as np
+	import mne
+	import re
+
+	hdr_file = data_path + "/transformed/"+block_name+"-uniform_opm_ave.flt.hdr"
+	flt_file = data_path + "/transformed/"+block_name+"-uniform_opm_ave.flt"
+	copy(template, hdr_file)
+
+	number_of_samples = evoked.data.shape[1]
+	number_of_gradiometers = evoked.data.shape[0]
+
+	sampling = 1/evoked.info['sfreq']
+	sampling_string = "{:.2e}".format(sampling)
+	sampling_base, sampling_eksponential = re.split('e', sampling_string)
+	sampling_base = np.float(sampling_base)
+	sampling_eksponential = np.int(sampling_eksponential)
+
+	# with is like your try .. finally block in this case
+	with open(hdr_file, 'r') as file:
+		# read a list of lines into data
+		data = file.readlines()
+
+	search1 = 'name_of_data_file='
+	search2 = 'number_of_samples='
+	search3 = 'sampling_exponent='
+	search4 = 'sampling_step='
+	search5 = 'parameter_of_sensors={'
+	end = '}'
+
+	for i in range(len(data)):
+		if search1 in data[i]:
+			block_name1 = block_name.replace('/', '')
+			data[i] = search1 + block_name1 + "-uniform-opm_ave.flt\n"
+
+	for i in range(len(data)):
+		if search2 in data[i]:
+			data[i] = search2 + str(number_of_samples) + "\n"
+
+	for i in range(len(data)):
+		if search3 in data[i]:
+			data[i] = search3 + str(sampling_eksponential) + "\n"
+
+	for i in range(len(data)):
+		if search4 in data[i]:
+			data[i] = search4 + str(sampling_base) + "\n"
+
+	search = 'number_of_channels='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(number_of_gradiometers) + "\n"
+
+	search = 'number_of_sensors='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(number_of_gradiometers) + "\n"
+
+	search = 'number_of_groups='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(2) + "\n"
+
+	search = 'parameter_of_channels='
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			for ii in range(number_of_gradiometers):
+				if (ii % 2) == 0:
+					grp = "0001"
+				else:
+					grp = "0002"
+				add = str(ii).zfill(4) + " " + str(ii).zfill(4) + " 1 " + "OPM" + str(ii).zfill(3) + "            " + "1.000  0  magn      " + grp + "  1" + "\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+
+				add = "	" + str(ii).zfill(4)+ "  1.000000 * "+ "OPM" + str(ii).zfill(3) + "\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			long -= 1
+			i=i-1
+		i+=1
+
+	search = 'parameter_of_sensors={'
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			for ii in range(number_of_gradiometers):
+				if (ii % 2) == 0:
+					grp = "0001"
+				else:
+					grp = "0002"
+				add = str(ii).zfill(4) + " OPM" + str(ii).zfill(3) + "     1 " + grp
+				channel = evoked.info['chs'][ii]['loc']
+				unit_v = np.array([0.0, 0.0, 1.0])
+				rot_matrix = np.array([[channel[3], channel[4], channel[5]],[channel[6], channel[7], channel[8]],[channel[9], channel[10], channel[11]]])
+				vector = np.dot(unit_v.T, rot_matrix)
+				
+				for iii in range(3):
+					if channel[iii] < 0.0:
+						add = add + " " +"{:.5f}".format(channel[iii])
+					else:
+						add = add + "  " + "{:.5f}".format(channel[iii])
+				
+				for iii in range(3):
+					if vector[iii] < 0.0:
+						add = add + " " +"{:.5f}".format(vector[iii])
+					else:
+						add = add + "  " + "{:.5f}".format(vector[iii])
+
+				add = add + "   0.00000\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			i=i-1
+			long -= 1
+		i+=1
+
+	
+	search = 'parameter_of_groups='
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			add = "0001 1 OPM-Radial       T      0    1.000\n" 
+			data = data[:i+1] + [add] + data[1+i:]
+			i = i + 1 
+			long += 1
+
+			add = "0002 1 OPM-Tangential   T      0    1.000\n" 
+			data = data[:i+1] + [add] + data[1+i:]
+			i = i + 1
+			long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			long -= 1
+			i=i-1
+		i+=1
+
+	fname_trans = data_path + '/MNE/' + block_name[:5] + '/SQUID/' + block_name + '-trans.fif'
+	head_mri_trans = mne.read_trans(fname_trans)
+	meg_head_trans = evoked.info['dev_head_t']
+
+	data.append('\nrot_matrix_from_head_to_mri=4\n')
+	data.append('*-------------------------------------------------------------------------\n')
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = np.zeros((4,4))
+	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
+	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
+	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
+	data.append("%.4f" % rot_matrix[3, 0] + "  " + "%.4f" % rot_matrix[3, 1]+ "  " +"%.4f" % rot_matrix[3, 2] + "  " + "%.4f" % rot_matrix[3, 3] +"\n")
+	data.append("}")
+
+	data.append('\n\nrot_matrix_from_meg_to_head=4\n')
+	data.append('*-------------------------------------------------------------------------\n')
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = meg_head_trans['trans']
+	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
+	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
+	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
+	data.append("%.4f" % rot_matrix[3, 0] + "  " + "%.4f" % rot_matrix[3, 1]+ "  " +"%.4f" % rot_matrix[3, 2] + "  " + "%.4f" % rot_matrix[3, 3] +"\n")
+	data.append("}")
+
+	with open(hdr_file, 'w') as file:
+		file.writelines(data)
+
+	flt_data = np.zeros((number_of_samples, number_of_gradiometers), dtype=np.float32)
+	for i in range(number_of_gradiometers):
+		flt_data[:, i] = evoked.data[i]
+	flt_data = flt_data.ravel()
+	flt_data.tofile(flt_file)
+
+	flt_data = np.fromfile(flt_file, dtype=np.float32)
+	return
+
+
 def write_opm_hdrflt(data_path, evoked, block_name, template):
 	from shutil import copy
 	import numpy as np
@@ -621,6 +829,63 @@ def import_sensors(header_name, system):
 	return xyz1[:], xyz2[:], ch_info[:, 3], sfreq
 
 
+def create_topomap_uniform(evoked, path):
+	import mne
+	import numpy as np
+	import matplotlib.pyplot as plt
+
+	ch_info = evoked.ch_names
+	xyz = np.zeros((len(ch_info), 3))
+	chs = evoked.info['chs']
+	j = 0
+	for i in chs:
+		xyz[j,:] = i['loc'][:3]
+		j += 1
+
+	avg_x = (max(xyz[:,0]) + min(xyz[:,0]))/2.0
+	avg_y = (max(xyz[:,1]) + min(xyz[:,1]))/2.0
+
+	xyz[:, 0] -= avg_x
+	xyz[:, 1] -= avg_y
+
+	def map_et_coord(xx, yy, zz):
+		# projected helmet coordinates onto a plane
+
+		cc = np.where((xx.any() == 0.0) and (yy.any() == 0.0))
+
+		x2 = xx * xx
+		z2 = zz * zz
+		y2s = (yy - 0.13526) ** (2.0)
+
+		fact=np.sqrt((x2+z2+y2s)/(x2+z2))
+
+		xx = -xx * fact
+		yy = zz * fact
+
+		if cc[0] != -1:
+			xx[cc] = 0.0
+			yy[cc] = 0.0
+
+		return xx, yy
+
+	xx, yy = map_et_coord(-xyz[:, 0], xyz[:, 2], xyz[:, 1])
+
+	pos = np.zeros((len(ch_info), 4))
+
+	for i in range(0,len(xx),1):
+		pos[i, 0] = xx[i]
+		pos[i, 1] = yy[i]
+		pos[i, 2] = 0.04
+		pos[i, 3] = 0.03
+
+	ids = np.arange(len(ch_info))
+
+	lout = mne.channels.Layout((min(xx), max(xx), min(yy), max(yy)), pos=pos, names=ch_info, ids=ids ,kind="Vectorview-all")
+	# plt.show()
+	lout.save(path + "/uniform-152.lout")
+	return
+
+
 def create_topomap(data_path ,system="squid"):
 	import mne
 	import numpy as np
@@ -668,32 +933,32 @@ def create_topomap(data_path ,system="squid"):
 	return
 
 
-def create_topomap_uniform(xyz, names, data_path):
-	import mne
-	import numpy as np
-	import matplotlib.pyplot as plt
-	import pymeg_visualize_v13 as pvis
-
-	xyz[:, 0] = xyz[:, 0] - np.mean(xyz[:, 0])
-	xyz[:, 1] = xyz[:, 1] - np.mean(xyz[:, 1])
-	xyz[:, 2] = xyz[:, 2] - np.mean(xyz[:, 2])
-
-	xy = pvis.squid_xy_reconstruciton2(xyz[:, 0:3])
-
-	pos = np.zeros((len(xy), 4))
-
-	for i in range(0, len(xy), 1):
-		pos[i, 0] = xy[i, 0]
-		pos[i, 1] = xy[i, 1]
-		pos[i, 2] = 0.04
-		pos[i, 3] = 0.03
-
-	ids = np.arange(len(xy))
-
-	lout = mne.channels.Layout((min(xy[:, 0]), max(xy[:, 0]), min(xy[:, 1]), max(xy[:, 1])), pos=pos, names=names, ids=ids ,kind="Vectorview-all")
-	plt.show()
-	lout.save(data_path+"uniform_76_OPM.lout")
-	return
+# def create_topomap_uniform(xyz, names, data_path):
+# 	import mne
+# 	import numpy as np
+# 	import matplotlib.pyplot as plt
+# 	import pymeg_visualize_v13 as pvis
+#
+# 	xyz[:, 0] = xyz[:, 0] - np.mean(xyz[:, 0])
+# 	xyz[:, 1] = xyz[:, 1] - np.mean(xyz[:, 1])
+# 	xyz[:, 2] = xyz[:, 2] - np.mean(xyz[:, 2])
+#
+# 	xy = pvis.squid_xy_reconstruciton2(xyz[:, 0:3])
+#
+# 	pos = np.zeros((len(xy), 4))
+#
+# 	for i in range(0, len(xy), 1):
+# 		pos[i, 0] = xy[i, 0]
+# 		pos[i, 1] = xy[i, 1]
+# 		pos[i, 2] = 0.04
+# 		pos[i, 3] = 0.03
+#
+# 	ids = np.arange(len(xy))
+#
+# 	lout = mne.channels.Layout((min(xy[:, 0]), max(xy[:, 0]), min(xy[:, 1]), max(xy[:, 1])), pos=pos, names=names, ids=ids ,kind="Vectorview-all")
+# 	plt.show()
+# 	lout.save(data_path+"uniform_76_OPM.lout")
+# 	return
 
 
 def imp_sensor_holders(fn):
@@ -759,6 +1024,35 @@ def imp_sensor_occupied(fn):
 		elif j == 2:
 			orientations.append([ff[1], ff[2], ff[3]])
 			j = 0
+		i = i + 1
+
+	holders = [a + b for a,b in zip(sensors,orientations)]
+
+	return np.array(holders).astype(np.float)
+
+
+def imp_sensor_uniform(fn):
+	# STRUCTUR OF SENSOR HOLDERS
+	# ECHO:
+	#
+	import re
+	import numpy as np
+
+	F = open(fn, 'r')
+	sensors = []
+	orientations = []
+	num_lines = sum(1 for line in open(fn))
+
+	i = 0
+	j = 0
+	while i < num_lines:
+		f = F.readline()
+		f = f.replace('"','')
+		f = f.replace(':', ',')
+		f = f.replace('\n', '')
+		ff = list(filter(None, re.split(" ", f)))
+		sensors.append([ff[0], ff[1], ff[2]])
+		orientations.append([ff[3], ff[4], ff[5]])
 		i = i + 1
 
 	holders = [a + b for a,b in zip(sensors,orientations)]
@@ -938,6 +1232,19 @@ def import_opm_trans(fn,name):
 			bd = np.array(bb, dtype=float)
 			i = num_lines
 		i+=1
-
 	return ad, bd
 
+
+def find_oneside_squid(evoked_squid, percent, side = "right"):
+	import numpy as np
+	import math
+	names_channels = np.array(evoked_squid.ch_names)
+	n_channels = len(names_channels) - math.floor(len(names_channels)*percent)
+	x_channels = np.zeros(len(names_channels))
+	for i in range(len(names_channels)):
+		x_channels[i] = evoked_squid.info['chs'][i]['loc'][0]
+	indeces = x_channels.argsort()
+	if side == "right":
+		return names_channels[indeces[n_channels:]]
+	else:
+		return names_channels[indeces[:n_channels]]
