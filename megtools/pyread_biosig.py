@@ -91,14 +91,14 @@ def write_squid_hdrflt(data_path, evoked, block_name, template):
 	return
 
 
-def write_uniform_opm_hdrflt(data_path, evoked, block_name, template):
+def write_uniform_opm_hdrflt(data_path, evoked, block_name, template, system, comments=""):
 	from shutil import copy
 	import numpy as np
 	import mne
 	import re
 
-	hdr_file = data_path + "/transformed/"+block_name+"-uniform_opm_ave.flt.hdr"
-	flt_file = data_path + "/transformed/"+block_name+"-uniform_opm_ave.flt"
+	hdr_file = data_path + "/transformed/" + "/" + system + "/" + block_name+"-uniform_opm_ave.flt.hdr"
+	flt_file = data_path + "/transformed/" + "/" + system + "/" + block_name+"-uniform_opm_ave.flt"
 	copy(template, hdr_file)
 
 	number_of_samples = evoked.data.shape[1]
@@ -148,6 +148,11 @@ def write_uniform_opm_hdrflt(data_path, evoked, block_name, template):
 	for i in range(len(data)):
 		if search in data[i]:
 			data[i] = search + str(number_of_gradiometers) + "\n"
+
+	search = 'comment='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + " " + comments + "\n"
 
 	search = 'number_of_groups='
 	for i in range(len(data)):
@@ -262,8 +267,8 @@ def write_uniform_opm_hdrflt(data_path, evoked, block_name, template):
 			i=i-1
 		i+=1
 
-	fname_trans = data_path + '/MNE/' + block_name[:5] + '/SQUID/' + block_name + '-trans.fif'
-	head_mri_trans = mne.read_trans(fname_trans)
+	#fname_trans = data_path + '/MNE/' + block_name[:5] + '/SQUID/' + block_name + '-trans.fif'
+	#head_mri_trans = mne.read_trans(fname_trans)
 	meg_head_trans = evoked.info['dev_head_t']
 
 	data.append('\nrot_matrix_from_head_to_mri=4\n')
@@ -882,7 +887,7 @@ def create_topomap_uniform(evoked, path):
 
 	lout = mne.channels.Layout((min(xx), max(xx), min(yy), max(yy)), pos=pos, names=ch_info, ids=ids ,kind="Vectorview-all")
 	# plt.show()
-	lout.save(path + "/uniform-152.lout")
+	lout.save(path + "/uniform-160.lout")
 	return
 
 
