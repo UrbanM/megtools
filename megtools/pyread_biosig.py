@@ -90,6 +90,222 @@ def write_squid_hdrflt(data_path, evoked, block_name, template):
 
 	return
 
+def write_multikit_opm_hdrflt(data_path, evoked, block_name, template, system, exportname, comments=""):
+	from shutil import copy
+	import numpy as np
+	import mne
+	import re
+
+	hdr_file = data_path + "/processed/" + exportname + ".flt.hdr"
+	flt_file = data_path + "/processed/" + exportname + ".flt"
+	copy(template, hdr_file)
+
+	number_of_samples = evoked.data.shape[1]
+	number_of_gradiometers = evoked.data.shape[0]
+
+	sampling = 1/evoked.info['sfreq']
+	sampling_string = "{:.2e}".format(sampling)
+	sampling_base, sampling_eksponential = re.split('e', sampling_string)
+	sampling_base = np.float(sampling_base)
+	sampling_eksponential = np.int(sampling_eksponential)
+
+	# with is like your try .. finally block in this case
+	with open(hdr_file, 'r') as file:
+		# read a list of lines into data
+		data = file.readlines()
+
+	search1 = 'name_of_data_file='
+	search2 = 'number_of_samples='
+	search3 = 'sampling_exponent='
+	search4 = 'sampling_step='
+	search5 = 'parameter_of_sensors={'
+	search6 = 'name='
+	end = '}'
+
+	for i in range(len(data)):
+		if search6 in data[i]:
+			data[i] = search6 + "Created by Urban Marhl, with package megtools for Python 3.5 or higher\n"
+			break
+
+	for i in range(len(data)):
+		if search1 in data[i]:
+			data[i] = search1 + exportname + ".flt\n"
+
+	for i in range(len(data)):
+		if search2 in data[i]:
+			data[i] = search2 + str(number_of_samples) + "\n"
+
+	for i in range(len(data)):
+		if search3 in data[i]:
+			data[i] = search3 + str(sampling_eksponential) + "\n"
+
+	for i in range(len(data)):
+		if search4 in data[i]:
+			data[i] = search4 + str(sampling_base) + "\n"
+
+	search = 'number_of_channels='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(number_of_gradiometers) + "\n"
+
+	search = 'number_of_sensors='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(number_of_gradiometers) + "\n"
+
+	search = 'comment='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + " " + comments + "\n"
+
+	search = 'number_of_groups='
+	for i in range(len(data)):
+		if search in data[i]:
+			data[i] = search + str(2) + "\n"
+
+	search = 'parameter_of_channels='
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			for ii in range(number_of_gradiometers):
+				if (ii % 2) == 0:
+					grp = "0001"
+				else:
+					grp = "0002"
+				add = str(ii).zfill(4) + " " + str(ii).zfill(4) + " 1 " + "OPM" + str(ii).zfill(3) + "            " + "1.000  0  magn      " + grp + "  1" + "\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+
+				add = "	" + str(ii).zfill(4)+ "  1.000000 * "+ "OPM" + str(ii).zfill(3) + "\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			long -= 1
+			i=i-1
+		i+=1
+
+	search = 'parameter_of_sensors={'
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			for ii in range(number_of_gradiometers):
+				if (ii % 2) == 0:
+					grp = "0001"
+				else:
+					grp = "0002"
+				add = str(ii).zfill(4) + " OPM" + str(ii).zfill(3) + "     1 " + grp
+				channel = evoked.info['chs'][ii]['loc']
+				unit_v = np.array([0.0, 0.0, 1.0])
+				rot_matrix = np.array([[channel[3], channel[4], channel[5]],[channel[6], channel[7], channel[8]],[channel[9], channel[10], channel[11]]])
+				vector = np.dot(unit_v.T, rot_matrix)
+				
+				for iii in range(3):
+					if channel[iii] < 0.0:
+						add = add + " " +"{:.5f}".format(channel[iii])
+					else:
+						add = add + "  " + "{:.5f}".format(channel[iii])
+				
+				for iii in range(3):
+					if vector[iii] < 0.0:
+						add = add + " " +"{:.5f}".format(vector[iii])
+					else:
+						add = add + "  " + "{:.5f}".format(vector[iii])
+
+				add = add + "   0.00000\n"
+				data = data[:i+1] + [add] + data[1+i:]
+				i = i + 1
+				long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			i=i-1
+			long -= 1
+		i+=1
+
+	
+	search = 'parameter_of_groups='
+	long = len(data)
+	delete = 0
+	end = '}'
+	searchend = 0
+	i=0
+	while i < long:
+		if search in data[i]:
+			add = "0001 1 OPM-Radial       T      0    1.000\n" 
+			data = data[:i+1] + [add] + data[1+i:]
+			i = i + 1 
+			long += 1
+
+			add = "0002 1 OPM-Tangential   T      0    1.000\n" 
+			data = data[:i+1] + [add] + data[1+i:]
+			i = i + 1
+			long += 1
+			i = i+1
+			searchend = 1
+			delete = 1
+		if end in data[i] and searchend == 1:
+			break
+		if delete == 1:
+			del(data[i])
+			long -= 1
+			i=i-1
+		i+=1
+
+	#fname_trans = data_path + '/MNE/' + block_name[:5] + '/SQUID/' + block_name + '-trans.fif'
+	#head_mri_trans = mne.read_trans(fname_trans)
+	meg_head_trans = evoked.info['dev_head_t']
+
+	data.append('\nrot_matrix_from_head_to_mri=4\n')
+	data.append('*-------------------------------------------------------------------------\n')
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = np.zeros((4,4))
+	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
+	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
+	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
+	data.append("%.4f" % rot_matrix[3, 0] + "  " + "%.4f" % rot_matrix[3, 1]+ "  " +"%.4f" % rot_matrix[3, 2] + "  " + "%.4f" % rot_matrix[3, 3] +"\n")
+	data.append("}")
+
+	data.append('\n\nrot_matrix_from_meg_to_head=4\n')
+	data.append('*-------------------------------------------------------------------------\n')
+	# rot_matrix = evoked.info['dev_head_t']['trans']
+	rot_matrix = meg_head_trans['trans']
+	data.append("%.4f" % rot_matrix[0, 0] + "  " + "%.4f" % rot_matrix[0, 1]+ "  " +"%.4f" % rot_matrix[0, 2] + "  " + "%.4f" % rot_matrix[0, 3] +"\n")
+	data.append("%.4f" % rot_matrix[1, 0] + "  " + "%.4f" % rot_matrix[1, 1]+ "  " +"%.4f" % rot_matrix[1, 2] + "  " + "%.4f" % rot_matrix[1, 3] +"\n")
+	data.append("%.4f" % rot_matrix[2, 0] + "  " + "%.4f" % rot_matrix[2, 1]+ "  " +"%.4f" % rot_matrix[2, 2] + "  " + "%.4f" % rot_matrix[2, 3] +"\n")
+	data.append("%.4f" % rot_matrix[3, 0] + "  " + "%.4f" % rot_matrix[3, 1]+ "  " +"%.4f" % rot_matrix[3, 2] + "  " + "%.4f" % rot_matrix[3, 3] +"\n")
+	data.append("}")
+
+	with open(hdr_file, 'w') as file:
+		file.writelines(data)
+
+	flt_data = np.zeros((number_of_samples, number_of_gradiometers), dtype=np.float32)
+	for i in range(number_of_gradiometers):
+		flt_data[:, i] = evoked.data[i]
+	flt_data = flt_data.ravel()
+	flt_data.tofile(flt_file)
+
+	flt_data = np.fromfile(flt_file, dtype=np.float32)
+	return
 
 def write_uniform_opm_hdrflt(data_path, evoked, block_name, template, system, comments=""):
 	from shutil import copy
@@ -680,6 +896,50 @@ def find_bad_channels(data, min_ch, max_ch):
 		j += 1
 
 	return bad_ch
+
+
+def import_simple_opm(header_name, value_name):
+	import numpy as np
+	import megtools.meg_filtering as mfil
+	#min_chan = 0
+	#max_chan = 125
+	#min_sens = 0
+	#max_sens = 250
+
+	ch_info = imp_param_channels(header_name)  # seq id u name calib grd grd_name grp n_sensors
+	data = np.transpose(imp_bin_data(value_name, header_name))
+	locations = imp_param_sensors(header_name)
+	sfreq = (imp_samp_freq(header_name))
+
+	# order = 5
+	# cutoff = 100.0  # desired cutoff frequency of the filter, Hz
+	# fs = 1 / sfreq  # sample rate, Hz
+	# for i in range(min_chan, max_chan+1, 1):
+	#     data[i, :] = mfil.butter_filtering(data[i, :], order, fs, cutoff)
+
+	names = ch_info[:, 6]
+
+	# bad_channels = find_bad_channels(data, min_chan, max_chan)
+	# bad_channels = []
+
+	xyz = np.array(locations[:, 4:10], dtype=np.float32)
+
+	mag = np.array(data[:, :], dtype=np.float32)
+	mag = mag * 10.0 ** (-15.0)
+
+	#ii = np.argmax(xyz1[:, 0])
+	#a = (xyz1[:, 0] - xyz1[ii, 0]) ** 2
+	#b = (xyz1[:, 1] - xyz1[ii, 1]) ** 2
+	#c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
+
+	#lenghts = np.sqrt(a + b + c)
+	# nearest = np.argsort(lenghts)
+	#
+	# # nearest = np.delete(nearest, bad_channels, 0)
+	# nearest = nearest[0:] #int(len(lenghts))]
+	# nearest = np.sort(nearest)
+
+	return xyz[:], mag[:], ch_info[:, 3], sfreq
 
 
 def import_squid(header_name, value_name):
