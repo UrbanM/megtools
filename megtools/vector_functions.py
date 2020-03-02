@@ -515,8 +515,7 @@ def rigid_transform_3D(A, B):
 def create_rot_matrix(v1, v2):
 	import numpy as np
 
-	a = np.array(v1).T
-	b = np.array(v2).T
+	a, b = (v1 / np.linalg.norm(v1)).reshape(3), (v2 / np.linalg.norm(v2)).reshape(3)
 
 	I = np.identity(3)
 	v = np.cross(a, b)
