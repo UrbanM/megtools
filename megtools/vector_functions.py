@@ -525,3 +525,4 @@ def create_rot_matrix(v1, v2):
 	rot_matrix = I + vx + np.dot(vx, vx) * (1.0 - c) / (s * s)
 
 	return rot_matrix
+
