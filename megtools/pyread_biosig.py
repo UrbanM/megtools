@@ -90,14 +90,14 @@ def write_squid_hdrflt(data_path, evoked, block_name, template):
 
 	return
 
-def write_multikit_opm_hdrflt(data_path, evoked, block_name, template, system, exportname, comments=""):
+def write_multikit_opm_hdrflt(data_path, evoked, block_name, template, system, exportname, exportpath, comments=""):
 	from shutil import copy
 	import numpy as np
 	import mne
 	import re
 
-	hdr_file = data_path + "/processed/" + exportname + ".flt.hdr"
-	flt_file = data_path + "/processed/" + exportname + ".flt"
+	hdr_file = exportpath + exportname + ".flt.hdr"
+	flt_file = exportpath + exportname + ".flt"
 	copy(template, hdr_file)
 
 	number_of_samples = evoked.data.shape[1]
@@ -1094,7 +1094,7 @@ def import_sensors(header_name, system):
 	return xyz1[:], xyz2[:], ch_info[:, 3], sfreq
 
 
-def create_topomap_uniform(evoked, path):
+def create_topomap_uniform(evoked, path, name):
 	import mne
 	import numpy as np
 	import matplotlib.pyplot as plt
@@ -1147,7 +1147,7 @@ def create_topomap_uniform(evoked, path):
 
 	lout = mne.channels.Layout((min(xx), max(xx), min(yy), max(yy)), pos=pos, names=ch_info, ids=ids ,kind="Vectorview-all")
 	# plt.show()
-	lout.save(path + "/uniform-160.lout")
+	lout.save(path + "/" + name + ".lout")
 	return
 
 
