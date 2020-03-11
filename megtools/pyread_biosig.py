@@ -668,10 +668,10 @@ def import_squid(header_name, value_name):
 	mag = np.array(data[min_chan:max_chan, :], dtype=np.float32)
 	mag = mag * 10.0 ** (-15.0)
 
-	ii = np.argmax(xyz1[:, 0])
-	a = (xyz1[:, 0] - xyz1[ii, 0]) ** 2
-	b = (xyz1[:, 1] - xyz1[ii, 1]) ** 2
-	c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
+#	ii = np.argmax(xyz1[:, 0])
+#	a = (xyz1[:, 0] - xyz1[ii, 0]) ** 2
+#	b = (xyz1[:, 1] - xyz1[ii, 1]) ** 2
+#	c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
 
 	# lenghts = np.sqrt(a + b + c)
 	# nearest = np.argsort(lenghts)
