@@ -29,3 +29,65 @@ def find_events_AEF(values, times, triger_range):
 #	pvis.plot_channel(times, values, "TrigChannel", "signal", "time", None)
 #	plt.show()
 	return np.array(spikes)
+
+
+def calculate_gfp(evoked=None, data=None, times=None):
+	import numpy as np
+	if evoked==None and data==None:
+		print("To arguments add evoked or data+times!")
+		return
+	if evoked!=None and data!=None:
+		print("Cant have both, use only evoked or data+times!")
+		return
+	
+	if evoked!=None:
+		import mne
+		evoked = evoked.copy()
+		picks = mne.pick_types(evoked.info, exclude='bads')
+		GFP = np.std(evoked.data[picks], axis=0)
+		return GFP, evoked.times
+
+	if data!=None:
+		print("Not yet implemented for only data!")
+		return
+
+
+def find_M100_peak(evoked, time_range=0.03, show=False):
+	import matplotlib.pyplot as plt
+	import scipy.signal as ssig
+	import numpy as np
+	import megtools.pymeg_visualize as pvis
+
+	evoked.plot(gfp=True, show=False)
+
+	GFP, times = calculate_gfp(evoked=evoked)
+
+	peaks = ssig.find_peaks(GFP)[0]
+	avg_of_peaks = np.average(GFP[peaks]) 
+
+	high_peaks = []
+	for i in peaks:
+		if GFP[i] > 1.2*avg_of_peaks:
+			high_peaks.append(i)
+	
+	first = 1
+	for i in high_peaks:
+		if first == 1:
+			if abs(times[i]-0.1)<=time_range:
+				max_peak = i
+				first = 0
+		else:
+			if GFP[i] > GFP[max_peak]:
+				if abs(times[i]-0.1)<=time_range:
+					max_peak = i
+
+	plt1 = pvis.simple_plot(times, GFP)
+	plt1.scatter(times[peaks], GFP[peaks], c="r")
+	plt.axhline(y=1.2*avg_of_peaks)	
+	plt1.scatter(times[high_peaks], GFP[high_peaks], c="g")
+	plt1.scatter(times[max_peak], GFP[max_peak], c="black")
+
+	if show==True:
+		plt.show()
+	return max_peak
+

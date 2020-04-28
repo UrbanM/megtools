@@ -1484,7 +1484,7 @@ def simple_plot(x, y, name = "default", yaxis = "y-os", xaxis="x-os"):
 	# plt.savefig(fn)  # save the figure to file
 	plt.show(block=False)
 
-	return 0
+	return plt
 
 
 def plot_channel(x, y, ch_name, yaxis, xaxis, x_range):
