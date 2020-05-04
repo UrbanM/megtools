@@ -1466,15 +1466,24 @@ def plot_sens_orient(xyz):
 	return
 
 
-def simple_plot(x, y, name = "default", yaxis = "y-os", xaxis="x-os"):
+def simple_plot(x, y, name = "default", yaxis = "y-os", xaxis="x-os", usetex=False, ratio=1., size=16, c="black", xrange="auto"):
 	import matplotlib.pyplot as plt
-	size = 16
-	fig = plt.figure()
+	if usetex==True:
+		from matplotlib import rc
+		rc('text', usetex=True)
+	size = size
+	w, h = plt.figaspect(ratio)
+	fig = plt.figure(figsize=(w, h))
 	ax = fig.add_subplot(111)
-	plt.xlim(min(x), max(x))
-	plt.ylim(min(y), max(y))
+	dx = (max(x)-min(x))/20.0
+	dy = (max(y)-min(y))/20.0
+	if xrange=="auto":
+		plt.xlim(min(x), max(x))
+	else:
+		plt.xlim(xrange[0], xrange[1])
+	plt.ylim(min(y-dy), max(y+dy))
 	# ax.scatter(x, y)
-	ax.plot(x, y, '-')
+	ax.plot(x, y, '-', c=c)
 	ax.set_ylabel(yaxis, fontsize=size)
 	ax.set_xlabel(xaxis, fontsize=size)
 	plt.xticks(size=size)

@@ -52,42 +52,50 @@ def calculate_gfp(evoked=None, data=None, times=None):
 		return
 
 
-def find_M100_peak(evoked, time_range=0.03, show=False):
+def find_M100_peak(evoked, prefered_time=0.10, time_range=0.014, show=False, savefig=False):
 	import matplotlib.pyplot as plt
 	import scipy.signal as ssig
 	import numpy as np
 	import megtools.pymeg_visualize as pvis
 
-	evoked.plot(gfp=True, show=False)
+#	evoked.plot(gfp=True, show=False)
 
 	GFP, times = calculate_gfp(evoked=evoked)
 
 	peaks = ssig.find_peaks(GFP)[0]
 	avg_of_peaks = np.average(GFP[peaks]) 
 
-	high_peaks = []
-	for i in peaks:
-		if GFP[i] > 1.2*avg_of_peaks:
-			high_peaks.append(i)
+	high_peaks = peaks
+#	for i in peaks:
+#		if GFP[i] > 1.0*avg_of_peaks:
+#			high_peaks.append(i)
 	
 	first = 1
 	for i in high_peaks:
 		if first == 1:
-			if abs(times[i]-0.1)<=time_range:
+			if abs(times[i]-prefered_time)<=time_range:
 				max_peak = i
 				first = 0
 		else:
-			if GFP[i] > GFP[max_peak]:
-				if abs(times[i]-0.1)<=time_range:
+			if abs(times[i]-prefered_time)<=time_range:
+				if GFP[i] > GFP[max_peak]:
 					max_peak = i
 
-	plt1 = pvis.simple_plot(times, GFP)
-	plt1.scatter(times[peaks], GFP[peaks], c="r")
-	plt.axhline(y=1.2*avg_of_peaks)	
-	plt1.scatter(times[high_peaks], GFP[high_peaks], c="g")
-	plt1.scatter(times[max_peak], GFP[max_peak], c="black")
+	GFP = GFP * 10**(15)
+	plt1 = pvis.simple_plot(times, GFP, yaxis="$G \,\mathrm{[fT]}$", xaxis="$t \,\mathrm{[s]}$", usetex=True, ratio=0.5, size=20, c="black", xrange=[0.0,0.4])
 
+	plt1.scatter(times[peaks], GFP[peaks], c="r")
+#	plt.axhline(y=1.2*avg_of_peaks)	
+#	plt1.scatter(times[high_peaks], GFP[high_peaks], c="g")
+	plt1.scatter(times[max_peak], GFP[max_peak], c="g")
+	
 	if show==True:
 		plt.show()
-	return max_peak
+	if show==None:
+		plt.close()
+	
+	if savefig!=False:
+		plt.savefig(savefig)
+
+	return times[max_peak]
 
