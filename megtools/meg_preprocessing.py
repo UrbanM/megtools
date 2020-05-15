@@ -52,7 +52,7 @@ def calculate_gfp(evoked=None, data=None, times=None):
 		return
 
 
-def find_M100_peak(evoked, prefered_time=0.10, time_range=0.014, show=False, savefig=False):
+def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, savefig=False):
 	import matplotlib.pyplot as plt
 	import scipy.signal as ssig
 	import numpy as np
@@ -82,10 +82,10 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.014, show=False, sav
 					max_peak = i
 
 	GFP = GFP * 10**(15)
+	# if show == True or savefig!=False:
 	plt1 = pvis.simple_plot(times, GFP, yaxis="$G \,\mathrm{[fT]}$", xaxis="$t \,\mathrm{[s]}$", usetex=True, ratio=0.5, size=20, c="black", xrange=[0.0,0.4])
-
 	plt1.scatter(times[peaks], GFP[peaks], c="r")
-#	plt.axhline(y=1.2*avg_of_peaks)	
+#	plt.axhline(y=1.2*avg_of_peaks)
 #	plt1.scatter(times[high_peaks], GFP[high_peaks], c="g")
 	plt1.scatter(times[max_peak], GFP[max_peak], c="g")
 	

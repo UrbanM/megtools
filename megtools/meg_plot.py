@@ -298,8 +298,21 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 		xi = np.linspace(x_min, x_max, nx)
 		yi = np.linspace(y_min, y_max, ny)
 		xi, yi = np.meshgrid(xi, yi)
-
+		xi_rad = xi
+		yi_rad = yi
 		zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
+
+		x_min = min(xy_tan[:, 0])
+		x_max = max(xy_tan[:, 0])
+		y_min = min(xy_tan[:, 1])
+		y_max = max(xy_tan[:, 1])
+		nx, ny = 200, 200
+
+		xi = np.linspace(x_min, x_max, nx)
+		yi = np.linspace(y_min, y_max, ny)
+		xi, yi = np.meshgrid(xi, yi)
+		xi_tan = xi
+		yi_tan = yi
 		zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
 
 		fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12,5))
@@ -313,10 +326,10 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 		dx = 0.0
 		dy = 0.0
 		
-		im11 = ax1.pcolormesh(xi-dx, yi+dx, zi_rad, cmap=plt.get_cmap('hot'))
-		im12 = ax2.pcolormesh(xi-dx, yi+dx, zi_tan, cmap=plt.get_cmap('hot'))
-		im21 = ax1.contour(xi-dx, yi+dx, zi_rad, colors="black")
-		im22 = ax2.contour(xi-dx, yi+dx, zi_tan, colors="black")
+		im11 = ax1.pcolormesh(xi_rad-dx, yi_rad+dx, zi_rad, cmap=plt.get_cmap('hot'))
+		im12 = ax2.pcolormesh(xi_tan-dx, yi_tan+dx, zi_tan, cmap=plt.get_cmap('hot'))
+		im21 = ax1.contour(xi_rad-dx, yi_rad+dx, zi_rad, colors="black")
+		im22 = ax2.contour(xi_tan-dx, yi_tan+dx, zi_tan, colors="black")
 
 #		im = ax1.scatter(xy[:,0], xy[:,1], s=2, c="black")
 
