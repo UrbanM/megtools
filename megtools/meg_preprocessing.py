@@ -91,7 +91,7 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 	
 	if show==True:
 		plt.show()
-	if show==None:
+	if show==False:
 		plt.close()
 	
 	if savefig!=False:

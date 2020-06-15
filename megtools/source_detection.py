@@ -4,7 +4,7 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system):
 
 	import numpy as np
 	from scipy import optimize
-	import vector_functions_v12 as vfun
+	import megtools.vector_functions as vfun
 
 	# type = grad, mag
 
@@ -25,17 +25,21 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system):
 	c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
 
 	lenghts = np.sqrt(a + b + c)
-	nearest = np.argsort(lenghts)  # [0:50]
+	nearest = np.argsort(lenghts)[:]
 	bad_channels = bad
 
 	# nearest = np.delete(nearest, bad_channels, 0)
 	# nearest = nearest[0:40]
 
+
+	# if system == "grad":
+	# 	argument = (xyz1[:, :], xyz2[:, :], mag[:], num, 1, 1, "grad", None)
+
 	if system == "grad":
-		argument = (xyz1[nearest, :], xyz2[nearest, :], mag[nearest], num, 1, 1, "grad", None)
+		argument = (xyz1[nearest, :], xyz2[nearest, :], mag[nearest], num, 1, 1, "grad")
 
 	elif system == "mag":
-		argument = (xyz1[nearest, :], None, mag[nearest], num, 1, 1, "mag", None)
+		argument = (xyz1[nearest, :], None, mag[nearest], num, 1, 1, "mag")
 	else:
 		print("Wrong system")
 		return
@@ -55,7 +59,7 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system):
 	return result
 
 
-def magfield(x0, mer1, mer2, pol, num, res, model, system, heads_points=None):
+def magfield(x0, mer1, mer2, pol, num, res, model, system):
 	# ####### model = 0 : infinite conductor (Maxwell)
 	# ####### model = 1 : spherical model (Sarwas)
 
@@ -175,75 +179,9 @@ def magfield(x0, mer1, mer2, pol, num, res, model, system, heads_points=None):
 		vsota = razlika1 + razlika2
 		return vsota
 
-	def magfieldmultispherical():
-		import numpy as np
-		mu0 = 1.25663706 * 10.0 ** (-6.0)
-
-		if system == "grad":
-			isys = 1
-		else:
-			isys = 0
-
-		for ii in range(0, num, 1):
-			i = 0
-			while i <= isys:
-				if i == 0:
-					mer = mer1
-				else:
-					mer = mer2
-
-				aa1 = mer[:, 0] - x0[0 + (ii * 6)]
-				aa2 = mer[:, 1] - x0[1 + (ii * 6)]
-				aa3 = mer[:, 2] - x0[2 + (ii * 6)]
-
-				norm_aa = aa1 * aa1 + aa2 * aa2 + aa3 * aa3
-				norm_aa = np.sqrt(norm_aa)
-
-				rr1 = mer[:, 0]
-				rr2 = mer[:, 1]
-				rr3 = mer[:, 2]
-				norm_rr = rr1 * rr1 + rr2 * rr2 + rr3 * rr3
-				norm_rr = np.sqrt(norm_rr)
-
-				skalar_aa_rs = aa1 * rr1 + aa2 * rr2 + aa3 * rr3
-				f = norm_aa * (norm_rr * norm_aa + skalar_aa_rs)
-
-				gradF1 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa1 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr1
-				gradF2 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa2 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr2
-				gradF3 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa3 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr3
-
-				KONST = (mu0 / (4 * np.pi)) / (f * f)
-
-				kross_q_r0s1 = x0[4 + (ii * 6)] * x0[2 + (ii * 6)] - x0[1 + (ii * 6)] * x0[5 + (ii * 6)]
-				kross_q_r0s2 = -x0[3 + (ii * 6)] * x0[2 + (ii * 6)] + x0[0 + (ii * 6)] * x0[5 + (ii * 6)]
-				kross_q_r0s3 = x0[3 + (ii * 6)] * x0[1 + (ii * 6)] - x0[0 + (ii * 6)] * x0[4 + (ii * 6)]
-
-				mixed = kross_q_r0s1 * rr1 + kross_q_r0s2 * rr2 + kross_q_r0s3 * rr3
-
-				B1 = (f * kross_q_r0s1 - mixed * gradF1)
-				B2 = (f * kross_q_r0s2 - mixed * gradF2)
-				B3 = (f * kross_q_r0s3 - mixed * gradF3)
-
-				if i == 0:
-					skalarno_smermerilnika1 = KONST * (B1 * mer[:, 3] + B2 * mer[:, 4] + B3 * mer[:, 5])
-					skalarno_smermerilnika2 = 0.0
-				else:
-					skalarno_smermerilnika2 = KONST * (B1 * mer[:, 3] + B2 * mer[:, 4] + B3 * mer[:, 5])
-				i += 1
-			if ii == 0:
-				razlika1 = skalarno_smermerilnika1 - skalarno_smermerilnika2
-				razlika2 = 0.0
-			if ii == 1:
-				razlika2 = skalarno_smermerilnika1 - skalarno_smermerilnika2
-
-		vsota = razlika1 + razlika2
-		return vsota
-
 	if model == 0:
 		result = magfieldinfinite()
 	elif model == 1:
-		result = magfieldspherical()
-	elif model == 2:
 		result = magfieldspherical()
 
 	if res == 1:
@@ -357,7 +295,7 @@ def calculate_leadfield(source_space, meters, meters1, model, system):
 	return lead_field
 
 
-def calculate_lead_matrix(source_space, lead_field):
+def calculate_lead_matrix(source_space, lead_field, reg_value=1/40):
 	import numpy
 	
 	lead_field_matrix = numpy.zeros((lead_field.shape[0], lead_field.shape[0]))
@@ -374,7 +312,7 @@ def calculate_lead_matrix(source_space, lead_field):
 	DI = numpy.linalg.inv(D * numpy.identity(len(D)))
 
 	for i in range(len(D)):
-		if D[i] < 1/50 * max(D):
+		if D[i] < reg_value * max(D):
 			DI[i, :] = 0.0
 
 	VDIUT_matrix = numpy.dot(numpy.dot(V, DI), UT)
@@ -412,7 +350,7 @@ def calculate_field(lead, sp_dipoles):
 
 def import_sourcespace(vertices, faces, sp_anlges, sp_dangles, leftright):
 	import numpy
-	import vector_functions_v12 as vfun
+	import megtools.vector_functions as vfun
 
 	vertices_temp = numpy.copy(vertices)
 

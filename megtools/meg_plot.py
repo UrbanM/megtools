@@ -231,45 +231,6 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 				else:
 					orients.append("rad")
 
-#			dist = np.sqrt((xyz_all[:,0]-j[0])**2+(xyz_all[:,1]-j[1])**2+(xyz_all[:,2]-j[2])**2)
-#
-#			pick1 = np.argsort(dist)[0]
-#			pick2 = np.argsort(dist)[1]
-#			
-#			angle1 = vfun.angle(xyz_all[pick1, 0:3]), xyz_all[pick1, 3:6])
-#			angle2 = vfun.angle(xyz_all[pick2, 0:3]), xyz_all[pick2, 3:6])
-#			angle1 = vfun.angle(xyz_all[pick1, 0:3]), xyz_all[pick1, 3:6])
-#			else:
-#				priVnt(vfun.angle(j[3:6], xyz_all[pick1, 3:6]))
-#				print(vfun.angle(j[3:6], xyz_all[pick2, 3:6]))
-
-#			dot1 = (np.dot(xyz_all[pick1,3:6], j[3:6]))
-#			dot2 = (np.dot(xyz_all[pick2,3:6], j[3:6]))
-#
-#			dot_ori1 = np.dot(xyz_all[pick1,0:3]/np.linalg.norm(xyz_all[pick1,0:3]), xyz_all[pick1,3:6])
-#			dot_ori2 = np.dot(xyz_all[pick2,0:3]/np.linalg.norm(xyz_all[pick2,0:3]), xyz_all[pick2,3:6])
-#
-#			if(abs(dot_ori2) > abs(dot_ori1)):
-#				orient1 = "rad"
-#				orient2 = "tan"
-#			else:
-#				orient1 = "tan"
-#				orient2 = "rad"
-#
-#			if abs(dot1) > abs(dot2):
-#				picks.append(pick2)
-##				if (dot2)<0:
-##					signs.append(-1)
-##				else:
-##					signs.append(1)
-#				orients.append(orient2)
-#			else:
-#				picks.append(pick1)
-##				if (dot1)<0:
-##					signs.append(-1)
-##				else:
-##					signs.append(1)
-#				orients.append(orient1)
 		rad_picks = np.where(np.array(orients) == "rad")[0].tolist()
 		tan_picks = np.where(np.array(orients) == "tan")[0].tolist()
 	
@@ -289,64 +250,71 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 		mag_rad = mag[rad_picks]
 		mag_tan = mag[tan_picks]
 
-		x_min = min(xy_rad[:, 0])
-		x_max = max(xy_rad[:, 0])
-		y_min = min(xy_rad[:, 1])
-		y_max = max(xy_rad[:, 1])
-		nx, ny = 200, 200
-
-		xi = np.linspace(x_min, x_max, nx)
-		yi = np.linspace(y_min, y_max, ny)
-		xi, yi = np.meshgrid(xi, yi)
-		xi_rad = xi
-		yi_rad = yi
-		zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
-
-		x_min = min(xy_tan[:, 0])
-		x_max = max(xy_tan[:, 0])
-		y_min = min(xy_tan[:, 1])
-		y_max = max(xy_tan[:, 1])
-		nx, ny = 200, 200
-
-		xi = np.linspace(x_min, x_max, nx)
-		yi = np.linspace(y_min, y_max, ny)
-		xi, yi = np.meshgrid(xi, yi)
-		xi_tan = xi
-		yi_tan = yi
-		zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
-
-		fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12,5))
-		ax1.set(adjustable='box', aspect='equal')
-		ax2.set(adjustable='box', aspect='equal')
-		patch, xy_circle = cut_circle_patch(center, radius, ax1, 350)
-		patch, xy_circle = cut_circle_patch(center, radius, ax2, 350)
-		ax1.plot(xy_circle[:,0], xy_circle[:,1],'-k', linewidth=2)
-		ax2.plot(xy_circle[:,0], xy_circle[:,1],'-k', linewidth=2)
+		plot_both=0
+		if len(rad_picks) > 0 and len(tan_picks) > 0:
+			plot_both = 1
+			fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
 
 		dx = 0.0
 		dy = 0.0
-		
-		im11 = ax1.pcolormesh(xi_rad-dx, yi_rad+dx, zi_rad, cmap=plt.get_cmap('hot'))
-		im12 = ax2.pcolormesh(xi_tan-dx, yi_tan+dx, zi_tan, cmap=plt.get_cmap('hot'))
-		im21 = ax1.contour(xi_rad-dx, yi_rad+dx, zi_rad, colors="black")
-		im22 = ax2.contour(xi_tan-dx, yi_tan+dx, zi_tan, colors="black")
 
-#		im = ax1.scatter(xy[:,0], xy[:,1], s=2, c="black")
+		if len(rad_picks) > 0:
+			if plot_both==0:
+				fig, ax1 = plt.subplots()
+			x_min = min(xy_rad[:, 0])
+			x_max = max(xy_rad[:, 0])
+			y_min = min(xy_rad[:, 1])
+			y_max = max(xy_rad[:, 1])
+			nx, ny = 200, 200
 
-		im = ax1.scatter(xy_rad[:,0]-dx, xy_rad[:,1]+dy, s=2, c="black")
-		im = ax2.scatter(xy_tan[:,0]-dx, xy_tan[:,1]+dy, s=2, c="black")
-		clb1 = fig.colorbar(im11, shrink=0.8, extend='both', ax=ax1)
-		clb2 = fig.colorbar(im12, shrink=0.8, extend='both', ax=ax2)
-		clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize = 18)
-		clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize = 18)
-		ax1.set_title("radial component", fontsize = 18)
-		ax2.set_title("tangential component", fontsize = 18)
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_rad = xi
+			yi_rad = yi
+			zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
 
-#		im1.set_clip_path(patch)
+			ax1.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax1, 350)
+			ax1.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
+			im11 = ax1.pcolormesh(xi_rad - dx, yi_rad + dx, zi_rad, cmap=plt.get_cmap('hot'))
+			im21 = ax1.contour(xi_rad - dx, yi_rad + dx, zi_rad, colors="black")
+			im = ax1.scatter(xy_rad[:, 0] - dx, xy_rad[:, 1] + dy, s=2, c="black")
+			clb1 = fig.colorbar(im11, shrink=0.8, extend='both', ax=ax1)
+			clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize=18)
+			ax1.set_title("radial component", fontsize = 18)
+			ax1.axis('off')
+
+		if len(tan_picks) > 0:
+			if plot_both==0:
+				fig, ax2 = plt.subplots()
+			x_min = min(xy_tan[:, 0])
+			x_max = max(xy_tan[:, 0])
+			y_min = min(xy_tan[:, 1])
+			y_max = max(xy_tan[:, 1])
+			nx, ny = 200, 200
+
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_tan = xi
+			yi_tan = yi
+			zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
+
+			ax2.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax2, 350)
+			ax2.plot(xy_circle[:,0], xy_circle[:,1],'-k', linewidth=2)
+			im12 = ax2.pcolormesh(xi_tan - dx, yi_tan + dx, zi_tan, cmap=plt.get_cmap('hot'))
+			im22 = ax2.contour(xi_tan-dx, yi_tan+dx, zi_tan, colors="black")
+			im = ax2.scatter(xy_tan[:,0]-dx, xy_tan[:,1]+dy, s=2, c="black")
+			clb2 = fig.colorbar(im12, shrink=0.8, extend='both', ax=ax2)
+			clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize=18)
+			ax2.set_title("tangential component", fontsize=18)
+			ax2.axis('off')
+
 		fig.tight_layout()
 #		plt.rc('font', family='serif')
-		ax1.axis('off')
-		ax2.axis('off')
+
 	return fig, picks, i_time, rad_picks, tan_picks
 
 
@@ -364,6 +332,8 @@ def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=
 	import matplotlib.mlab as ml
 	from matplotlib import rc
 	rc('text', usetex=True)
+
+	evoked.pick_types(meg=True, exclude='bads')
 	
 	if isinstance(time, list):
 		max_i_time = np.argsort(abs(evoked.times - max(time)))[0]
@@ -381,15 +351,19 @@ def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=
 		for i,j in enumerate(lout_names):
 			lout_dict[j]=lout_pos[i]
 
-		xy =[]
-		chs_evoked = evoked.info["chs"]
-		for i,j in enumerate(chs_evoked):
-			xy.append(lout_dict[j["ch_name"]])
+		xy_all = []
+		xy  = []
+		chs_names_evoked = evoked.ch_names
+		for i,j in enumerate(lout_names):
+			if j in chs_names_evoked:
+				xy.append(lout_dict[j])
+			xy_all.append(lout_dict[j])
 		xy = np.array(xy)
-		center = (np.mean(xy[:,0]), np.mean(xy[:,1]))
-		radius = 1.08*(np.max(xy[:,0])-np.min(xy[:,0]))/2.0
+		xy_all = np.array(xy_all)
+		center = (np.mean(xy_all[:,0]), np.mean(xy_all[:,1]))
+		radius = 1.08*(np.max(xy_all[:,0])-np.min(xy_all[:,0]))/2.0
+		no_ch_all = len(xy_all)
 		no_ch = len(xy)
-		print(no_ch)
 		
 		mag_avg = evoked.data[:, i_time]
 		if isinstance(time, list):
@@ -404,7 +378,9 @@ def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=
 			xy = xy[chosen,:]
 			mag = mag_avg[chosen]
 		else:
-			mag = mag_avg[:] 
+			chosen=[]
+			mag = mag_avg[:]
+
 		mag = mag*(10.0**15.0)
 
 		x_min = min(xy[:, 0])
@@ -431,7 +407,7 @@ def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=
 		plt.tight_layout()
 		plt.rc('font', family='serif')
 		plt.axis('off')
-	return fig, i_time
+	return fig, i_time, chosen
 
 def cut_circle_patch(xy_s, radius, ax, max_angle):
 	import matplotlib.patches as patches

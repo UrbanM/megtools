@@ -1,13 +1,3 @@
-def plot_topomap_opm_standard(evoked):
-	import matplotlib.pyplot as plt
-
-	return
-
-def plot_topomap_squid_standard(evoked):
-	import matplotlib.pyplot as plt
-
-	return
-
 def squid_butterflyplot(mag, names, freq):
 	import matplotlib.pyplot as plt
 	import numpy as np
@@ -363,7 +353,7 @@ def squid_xy_reconstruciton(xyz):
 
 
 def dipole_represent_nifti(out, num, nifti_path, rotation, translation):
-	import head_reconstruct_v12 as hrec
+	import megtools.head_reconstruct as hrec
 	import matplotlib.pyplot as plt
 	import matplotlib.cm as cm
 	import numpy as np
@@ -479,8 +469,8 @@ def dipole_represent_nifti(out, num, nifti_path, rotation, translation):
 		pos += num
 	#
 	fig.tight_layout()
-	fn = "PICS/location.png"
-	plt.savefig(fn, dpi=600)  # save the figure to file
+	# fn = "PICS/location.png"
+	# plt.savefig(fn, dpi=600)  # save the figure to file
 	plt.show()
 	# plt.close()
 
