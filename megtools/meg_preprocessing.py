@@ -73,11 +73,17 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 	first = 1
 	for i in high_peaks:
 		if first == 1:
-			if abs(times[i]-prefered_time)<=time_range:
+			if prefered_time==None:
+				max_peak = i
+				first = 0
+			elif abs(times[i]-prefered_time)<=time_range:
 				max_peak = i
 				first = 0
 		else:
-			if abs(times[i]-prefered_time)<=time_range:
+			if prefered_time==None:
+				max_peak = i
+				first = 0
+			elif abs(times[i]-prefered_time)<=time_range:
 				if GFP[i] > GFP[max_peak]:
 					max_peak = i
 
@@ -91,7 +97,7 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 	
 	if show==True:
 		plt.show()
-	if show==None:
+	if show==False:
 		plt.close()
 	
 	if savefig!=False:

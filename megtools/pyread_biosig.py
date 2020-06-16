@@ -763,9 +763,9 @@ def import_sensors(header_name, system):
 		ch_info = np.array(ch_info, dtype="U10")
 		for ii in range(max_chan):
 			true = 'MEG '+ str(ii+1).zfill(3)
-			print(true)
+			# print(true)
 			ch_info[ii,3] = true
-			print(ch_info[ii,3])
+			# print(ch_info[ii,3])
 
 		locations = imp_param_sensors(header_name)
 		sfreq = (imp_samp_freq(header_name))
