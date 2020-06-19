@@ -1,4 +1,4 @@
-def source_detection(mag, xyz1, xyz2, estimates, num, bad, system):
+def source_detection(mag, xyz1, xyz2, estimates, num, bad, system, fixed_xyz=0):
 	# ####### system = "grad" : gradiometer
 	# ####### system = "mag" : magnetometer
 
@@ -15,46 +15,221 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system):
 	mag = np.array(mag, dtype=np.float32)
 	x0 = np.array(estimates, dtype=np.float32)
 
-	x0[0:6] = vfun.rm_radial_component(x0[0:6])
-	if num == 2:
-		x0[6:12] = vfun.rm_radial_component(x0[6:12])
+	# x0[0:6] = vfun.rm_radial_component(x0[0:6])
+	# if num == 2:
+	# 	x0[6:12] = vfun.rm_radial_component(x0[6:12])
 
-	ii = np.argmax(xyz1[:, 0])
-	a = (xyz1[:, 0] - xyz1[ii, 0]) ** 2
-	b = (xyz1[:, 1] - xyz1[ii, 1]) ** 2
-	c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
-
-	lenghts = np.sqrt(a + b + c)
-	nearest = np.argsort(lenghts)[:]
-	bad_channels = bad
+	# ii = np.argmax(xyz1[:, 0])
+	# a = (xyz1[:, 0] - xyz1[ii, 0]) ** 2
+	# b = (xyz1[:, 1] - xyz1[ii, 1]) ** 2
+	# c = (xyz1[:, 2] - xyz1[ii, 2]) ** 2
+	#
+	# lenghts = np.sqrt(a + b + c)
+	# nearest = np.argsort(lenghts)[:]
+	# bad_channels = bad
 
 	# nearest = np.delete(nearest, bad_channels, 0)
 	# nearest = nearest[0:40]
 
-
 	# if system == "grad":
 	# 	argument = (xyz1[:, :], xyz2[:, :], mag[:], num, 1, 1, "grad", None)
 
-	if system == "grad":
-		argument = (xyz1[nearest, :], xyz2[nearest, :], mag[nearest], num, 1, 1, "grad")
+	if fixed_xyz == 1:
+		ind_xyz=[]
+		ind_dir=[]
+		for i in range(num):
+			j = i*6
+			ind_xyz.append(j)
+			ind_xyz.append(j + 1)
+			ind_xyz.append(j + 2)
+			ind_dir.append(j + 3)
+			ind_dir.append(j + 4)
+			ind_dir.append(j + 5)
 
-	elif system == "mag":
-		argument = (xyz1[nearest, :], None, mag[nearest], num, 1, 1, "mag")
+		xyz = x0[ind_xyz]
+		dir = x0[ind_dir]
+
+		if system == "grad":
+			argument = (xyz, xyz1[:, :], xyz2[:, :], mag[:], num, 1, 1, "grad")
+
+		elif system == "mag":
+			argument = (xyz, xyz1[:, :], None, mag[:], num, 1, 1, "mag")
+		else:
+			print("Wrong system")
+			return
+
+		result_1 = optimize.leastsq(
+			magfield_fixed,
+			dir,
+			args=argument
+		)
+		
+		print(result_1)
+
+		result = result_1[0]
+		print(result)
+		fixed_result = np.empty()
+		for i in range(1, num):
+			i_min = (i*3)
+			i_max = (i*3)+3
+			fixed_result = np.hstack(fixed_result, xyz[i_min:i_max],result[i_min:i_max])
+#		print(result, xyz, fixed_result)
+		return result
+
 	else:
-		print("Wrong system")
-		return
+		if system == "grad":
+			argument = (xyz1[:, :], xyz2[:, :], mag[:], num, 1, 1, "grad")
 
-	result_1 = optimize.leastsq(
-		magfield,
-		x0,
-		args=argument
-	)
+		elif system == "mag":
+			argument = (xyz1[:, :], None, mag[:], num, 1, 1, "mag")
+		else:
+			print("Wrong system")
+			return
 
-	result = result_1[0]
+		result_1 = optimize.leastsq(
+			magfield,
+			x0,
+			args=argument
+		)
 
-	result[0:6] = vfun.rm_radial_component(result[0:6])
-	if num == 2:
-		result[6:12] = vfun.rm_radial_component(result[6:12])
+		result = result_1[0]
+
+#		result[0:6] = vfun.rm_radial_component(result[0:6])
+#		if num == 2:
+#			result[6:12] = vfun.rm_radial_component(result[6:12])
+
+		return result
+	return
+
+
+
+def magfield_fixed(dir0, x0, mer1, mer2, pol, num, res, model, system):
+	# ####### model = 0 : infinite conductor (Maxwell)
+	# ####### model = 1 : spherical model (Sarwas)
+
+	# ####### system = "grad" : gradiometer
+	# ####### system = "mag" : magnetometer
+
+	# ####### res = 1 : calculate ressiduals
+	# ####### res = 0 : won't calculate ressiduals
+
+	def magfieldinfinite():
+		import numpy as np
+
+		if system == "grad":
+			isys = 1
+		else:
+			isys = 0
+
+		for ii in range(0, num, 1):
+			i = 0
+			while i <= isys:
+				if i == 0:
+					mer = mer1
+				else:
+					mer = mer2
+
+				mu0 = 1.25663706 * 10.0 ** (-6.0)
+
+				aa1 = mer[:, 0] - x0[0]
+				aa2 = mer[:, 1] - x0[1]
+				aa3 = mer[:, 2] - x0[2]
+
+				norm_aa = aa1 * aa1 + aa2 * aa2 + aa3 * aa3
+				norm_aa = np.sqrt(norm_aa)
+				norm_aa = norm_aa * norm_aa * norm_aa
+
+				kross_q_a1 = (aa3 * dir0[1] - aa2 * dir0[2]) / norm_aa
+				kross_q_a2 = (aa3 * dir0[0] - aa1 * dir0[2]) / norm_aa
+				kross_q_a3 = (aa2 * dir0[0] - aa1 * dir0[1]) / norm_aa
+
+				if i == 0:
+					skalarno_smermerilnika1 = mu0 * (kross_q_a1 * mer[:, 3] + kross_q_a2 * mer[:, 4] + kross_q_a3 * mer[:, 5])
+					skalarno_smermerilnika2 = 0.0
+				else:
+					skalarno_smermerilnika2 = mu0 * (kross_q_a1 * mer[:, 3] + kross_q_a2 * mer[:, 4] + kross_q_a3 * mer[:, 5])
+				i += 1
+
+			if ii == 0:
+				razlika1 = skalarno_smermerilnika1 - skalarno_smermerilnika2
+				razlika2 = 0.0
+			if ii == 1:
+				razlika2 = skalarno_smermerilnika1 - skalarno_smermerilnika2
+
+			vsota = razlika1 + razlika2
+		return vsota
+
+	def magfieldspherical():
+		import numpy as np
+		mu0 = 1.25663706 * 10.0 ** (-6.0)
+
+		if system == "grad":
+			isys = 1
+		else:
+			isys = 0
+
+		for ii in range(0, num, 1):
+			i = 0
+			while i <= isys:
+				if i == 0:
+					mer = mer1
+				else:
+					mer = mer2
+
+				aa1 = mer[:, 0] - x0[0 + (ii * 3)]
+				aa2 = mer[:, 1] - x0[1 + (ii * 3)]
+				aa3 = mer[:, 2] - x0[2 + (ii * 3)]
+
+				norm_aa = aa1 * aa1 + aa2 * aa2 + aa3 * aa3
+				norm_aa = np.sqrt(norm_aa)
+
+				rr1 = mer[:, 0]
+				rr2 = mer[:, 1]
+				rr3 = mer[:, 2]
+				norm_rr = rr1 * rr1 + rr2 * rr2 + rr3 * rr3
+				norm_rr = np.sqrt(norm_rr)
+
+				skalar_aa_rs = aa1 * rr1 + aa2 * rr2 + aa3 * rr3
+				f = norm_aa * (norm_rr * norm_aa + skalar_aa_rs)
+
+				gradF1 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa1 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr1
+				gradF2 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa2 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr2
+				gradF3 = (f / (norm_aa ** 2) + norm_aa + norm_rr) * aa3 + ((norm_aa ** 2) / norm_rr + norm_aa) * rr3
+
+				KONST = (mu0 / (4 * np.pi)) / (f * f)
+
+				kross_q_r0s1 = dir0[1 + (ii * 3)] * x0[2 + (ii * 3)] - x0[1 + (ii * 3)] * dir0[2 + (ii * 3)]
+				kross_q_r0s2 = -dir0[0 + (ii * 3)] * x0[2 + (ii * 3)] + x0[0 + (ii * 3)] * dir0[2 + (ii * 3)]
+				kross_q_r0s3 = dir0[0 + (ii * 3)] * x0[1 + (ii * 3)] - x0[0 + (ii * 3)] * dir0[1 + (ii * 3)]
+
+				mixed = kross_q_r0s1 * rr1 + kross_q_r0s2 * rr2 + kross_q_r0s3 * rr3
+
+				B1 = (f * kross_q_r0s1 - mixed * gradF1)
+				B2 = (f * kross_q_r0s2 - mixed * gradF2)
+				B3 = (f * kross_q_r0s3 - mixed * gradF3)
+
+				if i == 0:
+					skalarno_smermerilnika1 = KONST * (B1 * mer[:, 3] + B2 * mer[:, 4] + B3 * mer[:, 5])
+					skalarno_smermerilnika2 = 0.0
+				else:
+					skalarno_smermerilnika2 = KONST * (B1 * mer[:, 3] + B2 * mer[:, 4] + B3 * mer[:, 5])
+				i += 1
+			if ii == 0:
+				razlika1 = skalarno_smermerilnika1 - skalarno_smermerilnika2
+				razlika2 = 0.0
+			if ii == 1:
+				razlika2 = skalarno_smermerilnika1 - skalarno_smermerilnika2
+
+		vsota = razlika1 + razlika2
+		return vsota
+
+	if model == 0:
+		result = magfieldinfinite()
+	elif model == 1:
+		result = magfieldspherical()
+
+	if res == 1:
+		result = result - pol
 
 	return result
 
@@ -95,9 +270,9 @@ def magfield(x0, mer1, mer2, pol, num, res, model, system):
 				norm_aa = np.sqrt(norm_aa)
 				norm_aa = norm_aa * norm_aa * norm_aa
 
-				kross_q_a1 = (aa3 * x0[4] - aa2 * x0[5]) / norm_aa
-				kross_q_a2 = (aa3 * x0[3] - aa1 * x0[5]) / norm_aa
-				kross_q_a3 = (aa2 * x0[3] - aa1 * x0[4]) / norm_aa
+				kross_q_a1 = (aa3 * dir0[1] - aa2 * dir0[2]) / norm_aa
+				kross_q_a2 = (aa3 * dir0[0] - aa1 * dir0[2]) / norm_aa
+				kross_q_a3 = (aa2 * dir0[0] - aa1 * dir0[1]) / norm_aa
 
 				if i == 0:
 					skalarno_smermerilnika1 = mu0 * (kross_q_a1 * mer[:, 3] + kross_q_a2 * mer[:, 4] + kross_q_a3 * mer[:, 5])
@@ -114,6 +289,7 @@ def magfield(x0, mer1, mer2, pol, num, res, model, system):
 
 			vsota = razlika1 + razlika2
 		return vsota
+
 
 	def magfieldspherical():
 		import numpy as np
