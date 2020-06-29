@@ -47,7 +47,7 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system, fixed_xyz=0):
 			ind_dir.append(j + 5)
 
 		xyz = x0[ind_xyz]
-		dir = x0[ind_dir]
+		dir0 = x0[ind_dir]
 
 		if system == "grad":
 			argument = (xyz, xyz1[:, :], xyz2[:, :], mag[:], num, 1, 1, "grad")
@@ -60,21 +60,17 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system, fixed_xyz=0):
 
 		result_1 = optimize.leastsq(
 			magfield_fixed,
-			dir,
+			dir0,
 			args=argument
 		)
-		
-		print(result_1)
 
 		result = result_1[0]
-		print(result)
-		fixed_result = np.empty()
+		fixed_result = np.hstack((xyz[0:3], result[0:3]))
 		for i in range(1, num):
 			i_min = (i*3)
 			i_max = (i*3)+3
-			fixed_result = np.hstack(fixed_result, xyz[i_min:i_max],result[i_min:i_max])
-#		print(result, xyz, fixed_result)
-		return result
+			fixed_result = np.hstack((fixed_result, xyz[i_min:i_max],result[i_min:i_max]))
+		return fixed_result
 
 	else:
 		if system == "grad":
