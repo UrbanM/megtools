@@ -106,7 +106,7 @@ def plotxyz(evoked, name=None, freesurfer_path=None):
 	
 	return
 
-def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realpicks = None):
+def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realpicks = None, halve=False):
 	import mne
 	import matplotlib.pyplot as plt
 	import matplotlib.cbook as cbook
@@ -253,7 +253,10 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 		plot_both=0
 		if len(rad_picks) > 0 and len(tan_picks) > 0:
 			plot_both = 1
-			fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+			if halve!=False:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(7, 5))
+			else:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
 
 		dx = 0.0
 		dy = 0.0
@@ -275,14 +278,15 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 			zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
 
 			ax1.set(adjustable='box', aspect='equal')
-			patch, xy_circle = cut_circle_patch(center, radius, ax1, 350)
+			patch, xy_circle = cut_circle_patch(center, radius, ax1, 350, halve=halve)
 			ax1.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
 			im11 = ax1.pcolormesh(xi_rad - dx, yi_rad + dx, zi_rad, cmap=plt.get_cmap('hot'))
 			im21 = ax1.contour(xi_rad - dx, yi_rad + dx, zi_rad, colors="black")
 			im = ax1.scatter(xy_rad[:, 0] - dx, xy_rad[:, 1] + dy, s=2, c="black")
 			clb1 = fig.colorbar(im11, shrink=0.8, extend='both', ax=ax1)
-			clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize=18)
-			ax1.set_title("radial component", fontsize = 18)
+			clb1.ax.tick_params(labelsize=30)
+			clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			ax1.set_title("$\mathrm{radial}$", fontsize = 30)
 			ax1.axis('off')
 
 		if len(tan_picks) > 0:
@@ -302,14 +306,15 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 			zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
 
 			ax2.set(adjustable='box', aspect='equal')
-			patch, xy_circle = cut_circle_patch(center, radius, ax2, 350)
+			patch, xy_circle = cut_circle_patch(center, radius, ax2, 350, halve=halve)
 			ax2.plot(xy_circle[:,0], xy_circle[:,1],'-k', linewidth=2)
 			im12 = ax2.pcolormesh(xi_tan - dx, yi_tan + dx, zi_tan, cmap=plt.get_cmap('hot'))
 			im22 = ax2.contour(xi_tan-dx, yi_tan+dx, zi_tan, colors="black")
 			im = ax2.scatter(xy_tan[:,0]-dx, xy_tan[:,1]+dy, s=2, c="black")
 			clb2 = fig.colorbar(im12, shrink=0.8, extend='both', ax=ax2)
-			clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize=18)
-			ax2.set_title("tangential component", fontsize=18)
+			clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			clb2.ax.tick_params(labelsize=30)
+			ax2.set_title("$\mathrm{tangential}$", fontsize=30)
 			ax2.axis('off')
 
 		fig.tight_layout()
@@ -400,16 +405,17 @@ def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=
 		im2 = plt.contour(xi, yi, zi, colors="black")
 		im = plt.scatter(xy[:,0], xy[:,1], s=2, c="black")
 		clb = fig.colorbar(im1, shrink=0.8, extend='both')
-		clb.ax.set_title('$B [\mathrm{fT}]$', fontsize = 18)
+		clb.ax.set_title('$B [\mathrm{fT}]$', fontsize = 30)
+		clb.ax.tick_params(labelsize=30)
 		patch, xy_circle = cut_circle_patch(center, radius, ax, 320)
 		im1.set_clip_path(patch)
 		plt.plot(xy_circle[:,0], xy_circle[:,1],'-k', linewidth=2)
-		plt.tight_layout()
+#		plt.tight_layout()
 		plt.rc('font', family='serif')
 		plt.axis('off')
 	return fig, i_time, chosen
 
-def cut_circle_patch(xy_s, radius, ax, max_angle):
+def cut_circle_patch(xy_s, radius, ax, max_angle, halve=False):
 	import matplotlib.patches as patches
 	import numpy as np
 	no_angles = 360
@@ -427,6 +433,14 @@ def cut_circle_patch(xy_s, radius, ax, max_angle):
 
 	xy[:,0] += xy_s[0]
 	xy[:,1] += xy_s[1]
+
+	if halve!=False:
+		idxs = np.where(xy[:,0]>xy_s[0])[0]
+		xy=xy[idxs,:]
+	elif halve=="left":
+		idxs = np.where(xy[:,0]<xy_s[0])[0]
+		xy=xy[idxs,:]
+
 	patch = patches.Polygon(xy, transform=ax.transData)
 	return patch, xy
 

@@ -87,21 +87,43 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 				if GFP[i] > GFP[max_peak]:
 					max_peak = i
 
-	GFP = GFP * 10**(15)
-	# if show == True or savefig!=False:
-	plt1 = pvis.simple_plot(times, GFP, yaxis="$G \,\mathrm{[fT]}$", xaxis="$t \,\mathrm{[s]}$", usetex=True, ratio=0.5, size=20, c="black", xrange=[0.0,0.4])
-	plt1.scatter(times[peaks], GFP[peaks], c="r")
-#	plt.axhline(y=1.2*avg_of_peaks)
-#	plt1.scatter(times[high_peaks], GFP[high_peaks], c="g")
-	plt1.scatter(times[max_peak], GFP[max_peak], c="g")
-	
+	if show==True or savefig!=False:
+		from matplotlib import rc
+
+		plt.rcParams.update({
+			"font.family": "serif"
+			#    "font.serif": [],                    # use latex default serif font
+			#    "font.sans-serif": ["DejaVu Sans"],  # use a specific sans-serif font
+		})
+		# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+		rc('text', usetex=True)
+		GFP = GFP * 10**(15)
+		fig, (ax2, ax) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(6,4))
+		
+		ax.plot(times, GFP, c="black")
+		ax.scatter(times[peaks], GFP[peaks], c="r", s=40)
+		ax.set_ylabel("GFP$\,\mathrm{[fT]}$", fontsize=25) #, labelpad=20)
+		ax.set_xlabel("$t \,\mathrm{[s]}$", fontsize=25)
+		ax.tick_params(axis='both', which='major', labelsize=25)
+		ax.scatter(times[max_peak], GFP[max_peak], c="g", s=50)
+		ax.yaxis.set_label_coords(-0.20,0.5)
+
+		
+		ax2.set_ylabel("$B\,\mathrm{[fT]}$", fontsize=25)#, labelpad=5)
+		ax2.plot(evoked.times, evoked.data.T*10**(15), c="black")
+		ax2.tick_params(axis='both', which='major', labelsize=25)
+		ax2.yaxis.set_label_coords(-0.20,0.5)
+		plt.xlim((0.0,0.4))
+		plt.tight_layout()
+#		plt.savefig("test.png")
+
+	if savefig!=False:
+		plt.savefig(savefig, dpi=600)
 	if show==True:
 		plt.show()
-	if show==False:
+	if show==True or savefig!=False:
 		plt.close()
-	
-	if savefig!=False:
-		plt.savefig(savefig)
 
+		# plt1 = pvis.simple_plot(times, GFP, yaxis="$G \,\mathrm{[fT]}$", xaxis="$t \,\mathrm{[s]}$", usetex=True, ratio=0.3, size=20, c="black", xrange=[0.0,0.4])
 	return times[max_peak]
 

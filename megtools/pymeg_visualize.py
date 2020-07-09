@@ -343,8 +343,8 @@ def squid_xy_reconstruciton(xyz):
 			dx = xyz[i, 0] - xyz[ind, 0]
 			dy = xyz[i, 1] - xyz[ind, 1]
 			theta = math.atan2(dy, dx)
-			xy[i, 0] = dist * np.cos(theta) + xyz[ind, 0]
-			xy[i, 1] = dist * np.sin(theta) + xyz[ind, 1]
+			xy[i, 0] = 1.05*dist * np.cos(theta) + xyz[ind, 0]
+			xy[i, 1] = 1.05*dist * np.sin(theta) + xyz[ind, 1]
 		else:
 			xy[i, 0] = xyz[ind, 0]
 			xy[i, 1] = xyz[ind, 1]
