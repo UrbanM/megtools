@@ -118,8 +118,18 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 	import matplotlib.mlab as ml
 	from mpl_toolkits.mplot3d import Axes3D
 	from numpy import linalg as LA
+
 	from matplotlib import rc
+	# rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+	## for Palatino and other serif fonts use:
+	# rc('font',**{'family':'serif','serif':['Palatino']})
 	rc('text', usetex=True)
+
+
+
+	# import os
+	# os.environ["PATH"] += os.pathsep + '/usr/local/texlive/2015/bin/x86_64-darwin'
+	# print(os.getenv("PATH"))
 
 	if realpicks != None:
 #		chosen = evoked.ch_names[realpicks]
