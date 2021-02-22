@@ -43,10 +43,10 @@ def calculate_gfp(evoked=None, data=None, times=None):
 	
 	if evoked!=None:
 		import mne
-		evoked = evoked.copy()
-		picks = mne.pick_types(evoked.info, exclude='bads')
-		GFP = np.std(evoked.data[picks], axis=0)
-		return GFP, evoked.times
+		evoked1 = evoked.copy()
+		evoked1.pick(picks="all",exclude="bads")
+		GFP = np.std(evoked1.data, axis=0)
+		return GFP, evoked1.times
 
 	if data!=None:
 		print("Not yet implemented for only data!")
@@ -67,6 +67,7 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 	avg_of_peaks = np.average(GFP[peaks]) 
 
 	high_peaks = peaks
+	max_peak = 0
 #	for i in peaks:
 #		if GFP[i] > 1.0*avg_of_peaks:
 #			high_peaks.append(i)
@@ -106,12 +107,15 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 		ax.set_ylabel("GFP$\,\mathrm{[fT]}$", fontsize=25) #, labelpad=20)
 		ax.set_xlabel("$t \,\mathrm{[s]}$", fontsize=25)
 		ax.tick_params(axis='both', which='major', labelsize=25)
-		ax.scatter(times[max_peak], GFP[max_peak], c="g", s=50)
+		if max_peak != 0:
+			ax.scatter(times[max_peak], GFP[max_peak], c="g", s=50)
 		ax.yaxis.set_label_coords(-0.20,0.5)
 
 		
 		ax2.set_ylabel("$B\,\mathrm{[fT]}$", fontsize=25)#, labelpad=5)
-		ax2.plot(evoked.times, evoked.data.T*10**(15), c="black")
+		evoked1=evoked.copy()
+		evoked1.pick("all", exclude="bads")
+		ax2.plot(evoked1.times, evoked1.data.T*10**(15), c="black")
 		ax2.tick_params(axis='both', which='major', labelsize=25)
 		ax2.yaxis.set_label_coords(-0.20,0.5)
 		plt.xlim((0.0,0.4))
