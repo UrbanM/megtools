@@ -90,9 +90,9 @@ def source_detection(mag, xyz1, xyz2, estimates, num, bad, system, fixed_xyz=0):
 
 		result = result_1[0]
 
-#		result[0:6] = vfun.rm_radial_component(result[0:6])
-#		if num == 2:
-#			result[6:12] = vfun.rm_radial_component(result[6:12])
+		result[0:6] = vfun.rm_radial_component(result[0:6])
+		if num == 2:
+			result[6:12] = vfun.rm_radial_component(result[6:12])
 
 		return result
 	return
@@ -266,9 +266,9 @@ def magfield(x0, mer1, mer2, pol, num, res, model, system):
 				norm_aa = np.sqrt(norm_aa)
 				norm_aa = norm_aa * norm_aa * norm_aa
 
-				kross_q_a1 = (aa3 * dir0[1] - aa2 * dir0[2]) / norm_aa
-				kross_q_a2 = (aa3 * dir0[0] - aa1 * dir0[2]) / norm_aa
-				kross_q_a3 = (aa2 * dir0[0] - aa1 * dir0[1]) / norm_aa
+				kross_q_a1 = (aa3 * x0[4] - aa2 * x0[5]) / norm_aa
+				kross_q_a2 = (aa3 * x0[3]- aa1 * x0[5]) / norm_aa
+				kross_q_a3 = (aa2 * x0[3] - aa1 * x0[4]) / norm_aa
 
 				if i == 0:
 					skalarno_smermerilnika1 = mu0 * (kross_q_a1 * mer[:, 3] + kross_q_a2 * mer[:, 4] + kross_q_a3 * mer[:, 5])
@@ -665,6 +665,57 @@ def calculate_covariancematrix(mag):
 	return cov_matrix
 
 
+def calculate_linear_fit(mag, meters, meters1, system, brain):
+	import numpy as np
+	import megtools.vector_functions as vfun
+	center = [(max(brain[:, 0]) + min(brain[:, 0])) / 2., (max(brain[:, 1]) + min(brain[:, 1])) / 2.,
+				(max(brain[:, 2]) + min(brain[:, 2])) / 2.]
 
+	dist_center_brain = 1 * np.max(
+			np.sqrt((brain[:, 0] - center[0]) ** 2 + (brain[:, 1] - center[1]) ** 2 + (brain[:, 2] - center[2]) ** 2))
 
+	steps=20
+	xyz_s = np.zeros((steps**3, 3))
 
+	x_s = np.linspace(center[0] - dist_center_brain, center[0] + dist_center_brain, steps)
+	y_s = np.linspace(center[1] - dist_center_brain, center[1] + dist_center_brain, steps)
+	z_s = np.linspace(center[2] - dist_center_brain, center[2] + dist_center_brain, steps)
+
+	ii=0
+	for i in x_s:
+		for j in y_s:
+			for k in z_s:
+				xyz_s[ii, 0] = i
+				xyz_s[ii, 1] = j
+				xyz_s[ii, 2] = k
+				ii+=1
+
+	re_best=1.0
+	chi_best=100
+	cc_best = 0.0
+	dip_best = None
+
+	for ii, xyz in enumerate(xyz_s):
+		xyz_n = xyz.reshape(1, 3)
+		lead = calculate_leadfield(xyz_n, meters, meters1, 0, system)
+		dip_mom = np.dot(np.dot(np.linalg.pinv(np.dot(lead[:,0,:].T, lead[:,0,:])),lead[:,0,:].T), mag)
+		dip_mom_n = dip_mom.reshape(1, 3)
+		dip = np.hstack((xyz_n, dip_mom_n))[0]
+		dip = vfun.rm_radial_component(dip)
+		dip_mom = dip[3:6].reshape(1, 3)
+
+		mag_res = calculate_field(lead, dip_mom)
+
+		chi = vfun.CHI_squared(mag_res, mag)
+		re = vfun.rel_err_vojko(mag,mag_res)
+		cc = vfun.corr_coeff_vojko(mag, mag_res)
+
+		if re > 0 and re < re_best:
+			ii_best = ii
+			xyz_best = xyz
+			dip_best = dip
+			mag_res_best = mag_res
+			re_best = re
+			cc_best = cc
+			chi_best = chi
+	return ii_best, dip_best, mag_res_best, re_best, cc_best

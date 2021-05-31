@@ -1,3 +1,147 @@
+def plot_sensors_pyvista(surfaces, sensors, sensors2=[], arrow_color = "green"):
+    import pyvista as pv
+    import mne
+    import numpy as np
+
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_brain_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # tres = np.ones((len(tris), 1), dtype=int) * 3
+    # tris = np.hstack([tres, tris])
+    # gray1 = (0.5, 0.5, 0.5)
+    # polygon1 = pv.PolyData(rr_mm, tris)
+
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_outer_skin_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # tres = np.ones((len(tris), 1), dtype=int) * 3
+    # tris = np.hstack([tres, tris])
+    # gray2 = (0.5, 0.5, 0.5)
+    # polygon2 = pv.PolyData(rr_mm, tris)
+
+    pv.set_plot_theme("document")
+    p = pv.Plotter()
+
+    for i in sensors:
+        sphere = pv.Sphere(center=i[0:3] * 10 ** 3, radius=5)
+        p.add_mesh(sphere, color="black")
+        arrow = pv.Arrow(start=i[0:3] * 10 ** 3, direction=i[3:6], scale=15)
+        p.add_mesh(arrow, color=arrow_color)
+
+    if len(sensors2)>0:
+        for i in sensors2:
+            sphere = pv.Sphere(center=i[0:3] * 10 ** 3, radius=5)
+            p.add_mesh(sphere, color="black")
+            arrow = pv.Arrow(start=i[0:3] * 10 ** 3, direction=i[3:6], scale=15)
+            p.add_mesh(arrow, color=arrow_color)
+
+    # for i in xyz_opm:
+    # 	sphere = pv.Sphere(center=i[0:3] * 10 ** 3, radius=5)
+    # 	p.add_mesh(sphere, color="black")
+    # 	arrow = pv.Arrow(start=i[0:3] * 10 ** 3, direction=i[3:6], scale=15)
+    # 	p.add_mesh(arrow, color="red")
+
+    # p.add_mesh(polygon1, color=gray1, opacity=0.7)
+    # p.add_mesh(polygon2, color=gray2, opacity=0.3)
+
+    # p.show(screenshot='opm_system.png')
+    step = 1.0/(len(surfaces)+1)
+    opacities = np.linspace(1-step, 0, num=len(surfaces), endpoint=False)
+    for i, surface in enumerate(surfaces):
+        rr_mm, tris = mne.read_surface(surface)
+        tres = np.ones((len(tris), 1), dtype=int) * 3
+        tris = np.hstack([tres, tris])
+        gray1 = (0.5, 0.5, 0.5)
+        polygon = pv.PolyData(rr_mm, tris)
+        p.add_mesh(polygon, color=gray1, opacity=opacities[i])
+
+    camera = pv.Camera()
+    # p.camera.position = (700.1, 1.5, 0.0)
+    # p.camera.focal_point = (0.2, 0.3, 0.3)
+    # p.camera.up = (0.0, 0.0, 0.0)
+    p.camera.zoom(1.6)
+
+    # gray = (0.5, 0.5, 0.5)
+    # renderer.mesh(*rr_mm.T, triangles=tris, color=gray, opacity=0.5)
+    #
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_brain_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # renderer = mne.viz.backends.renderer.create_3d_figure(
+    # 	size=(600, 600), bgcolor='w', scene=False)
+    # gray = (0.5, 0.5, 0.5)
+    # renderer.mesh(*rr_mm.T, triangles=tris, color=gray)
+
+    return p
+
+
+def plot_dipoles_pyvista(surfaces, dipoles, arrow_color = "yellow", scale=1.0, norad=False):
+    import pyvista as pv
+    import mne
+    import numpy as np
+
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_brain_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # tres = np.ones((len(tris), 1), dtype=int) * 3
+    # tris = np.hstack([tres, tris])
+    # gray1 = (0.5, 0.5, 0.5)
+    # polygon1 = pv.PolyData(rr_mm, tris)
+
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_outer_skin_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # tres = np.ones((len(tris), 1), dtype=int) * 3
+    # tris = np.hstack([tres, tris])
+    # gray2 = (0.5, 0.5, 0.5)
+    # polygon2 = pv.PolyData(rr_mm, tris)
+
+    pv.set_plot_theme("document")
+    p = pv.Plotter()
+
+    no_dipoles = len(dipoles)/6
+    for i in range(int(no_dipoles)):
+        if norad == False:
+            sphere = pv.Sphere(center=dipoles[(0+i*6):(3+i*6)] * 10 ** 3, radius=5*scale)
+            p.add_mesh(sphere, color="yellow")
+        arrow = pv.Arrow(start=dipoles[(0+i*6):(3+i*6)] * 10 ** 3, direction=dipoles[(3+i*6):(6+i*6)], scale=15*scale)
+        p.add_mesh(arrow, color=arrow_color)
+
+    # for i in xyz_opm:
+    # 	sphere = pv.Sphere(center=i[0:3] * 10 ** 3, radius=5)
+    # 	p.add_mesh(sphere, color="black")
+    # 	arrow = pv.Arrow(start=i[0:3] * 10 ** 3, direction=i[3:6], scale=15)
+    # 	p.add_mesh(arrow, color="red")
+
+    # p.add_mesh(polygon1, color=gray1, opacity=0.7)
+    # p.add_mesh(polygon2, color=gray2, opacity=0.3)
+
+    # p.show(screenshot='opm_system.png')
+    step = 1.0/((len(surfaces)+1)*2)
+    opacities = np.linspace(0.4, 0, num=len(surfaces), endpoint=False)
+    for i, surface in enumerate(surfaces):
+        rr_mm, tris = mne.read_surface(surface)
+        tres = np.ones((len(tris), 1), dtype=int) * 3
+        tris = np.hstack([tres, tris])
+        gray1 = (0.5, 0.5, 0.5)
+        polygon = pv.PolyData(rr_mm, tris)
+        p.add_mesh(polygon, color=gray1, opacity=opacities[i])
+
+    camera = pv.Camera()
+    # p.camera.position = (700.1, 1.5, 0.0)
+    # p.camera.focal_point = (0.2, 0.3, 0.3)
+    # p.camera.up = (0.0, 0.0, 0.0)
+    p.camera.zoom(1.6)
+    # p.show()
+
+    # gray = (0.5, 0.5, 0.5)
+    # renderer.mesh(*rr_mm.T, triangles=tris, color=gray, opacity=0.5)
+    #
+    # fname = os.path.join(subject_dir, name, 'bem', 'watershed', name + '_brain_surface')
+    # rr_mm, tris = mne.read_surface(fname)
+    # renderer = mne.viz.backends.renderer.create_3d_figure(
+    # 	size=(600, 600), bgcolor='w', scene=False)
+    # gray = (0.5, 0.5, 0.5)
+    # renderer.mesh(*rr_mm.T, triangles=tris, color=gray)
+
+    return p
+
+
 def line3D(xyz):
     # pylint: disable=no-member
     """ a simple visuals for 3D plot """

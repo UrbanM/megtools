@@ -104,7 +104,7 @@ def find_M100_peak(evoked, prefered_time=0.10, time_range=0.02, show=False, save
 		
 		ax.plot(times, GFP, c="black")
 		ax.scatter(times[peaks], GFP[peaks], c="r", s=40)
-		ax.set_ylabel("GFP$\,\mathrm{[fT]}$", fontsize=25) #, labelpad=20)
+		ax.set_ylabel("GMFA$\,\mathrm{[fT]}$", fontsize=25) #, labelpad=20)
 		ax.set_xlabel("$t \,\mathrm{[s]}$", fontsize=25)
 		ax.tick_params(axis='both', which='major', labelsize=25)
 		if max_peak != 0:

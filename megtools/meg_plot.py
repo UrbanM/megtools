@@ -106,7 +106,8 @@ def plotxyz(evoked, name=None, freesurfer_path=None):
 	
 	return
 
-def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realpicks = None, halve=False):
+
+def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realpicks=None, halve=False):
 	import mne
 	import matplotlib.pyplot as plt
 	import matplotlib.cbook as cbook
@@ -125,7 +126,236 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 	# rc('font',**{'family':'serif','serif':['Palatino']})
 	rc('text', usetex=True)
 
+	# import os
+	# os.environ["PATH"] += os.pathsep + '/usr/local/texlive/2015/bin/x86_64-darwin'
+	# print(os.getenv("PATH"))
 
+	if realpicks != None:
+		#		chosen = evoked.ch_names[realpicks]
+		evoked = evoked.copy()
+		evoked.pick(realpicks)
+	else:
+		evoked = evoked.copy()
+		evoked.pick_types(meg=True, exclude='bads')
+
+	if isinstance(time, list):
+		max_i_time = np.argsort(abs(evoked.times - max(time)))[0]
+		min_i_time = np.argsort(abs(evoked.times - min(time)))[0]
+		i_time = np.arange(min_i_time, max_i_time + 1)
+	elif isinstance(time, float):
+		i_time = np.argsort(abs(evoked.times - time))[0]
+
+	if system == "OPM":
+		sens_all_path = data_path + "/sensorholders/" + block_name[0:4] + "_sensor_pos_ori_all.txt"
+		xyz_all = pbio.imp_sensor_holders(sens_all_path)
+		xyz_all[:, 0:3] = xyz_all[:, 0:3] / 1000.0
+		xyz_all[:, 3:6] = -xyz_all[:, 3:6]
+
+		rotation, translation = pbio.import_opm_trans(data_path + "/MEG/opm_trans.txt", block_name[0:4])
+		translation = translation / 1000.0
+
+		unit_v = np.array([0.0, 0.0, 1.0])
+		xyz_occupied = np.zeros((len(evoked.ch_names), 6))
+		channelnames = []
+		for i in range(len(evoked.ch_names)):
+			channelnames.append(evoked.info['chs'][i]['ch_name'])
+			xyz = evoked.info['chs'][i]['loc']
+			rot_matrix = np.array(([xyz[3], xyz[4], xyz[5]], [xyz[6], xyz[7], xyz[8]], [xyz[9], xyz[10], xyz[11]]))
+			vector = np.dot(unit_v, rot_matrix)
+			xyz_occupied[i, 0:3] = xyz[0:3]
+			xyz_occupied[i, 3:6] = vector
+		channelnames = np.array(channelnames)
+
+		surf = mne.read_surface(subject_dir + block_name[0:4] + "/surf/" + "lh.white", read_metadata=True)
+		xyz_occupied[:, 0:3] = xyz_occupied[:, 0:3] + (surf[2]['cras'] / 1000.0)
+
+		xyz_occupied[:, 0] = xyz_occupied[:, 0] + translation[0]
+		xyz_occupied[:, 1] = xyz_occupied[:, 1] + translation[1]
+		xyz_occupied[:, 2] = xyz_occupied[:, 2] + translation[2]
+
+		xyz_occupied[:, 1], xyz_occupied[:, 2] = vfun.rotate_via_numpy(xyz_occupied[:, 1], xyz_occupied[:, 2],
+																	   np.radians(rotation[0]))
+		xyz_occupied[:, 0], xyz_occupied[:, 2] = vfun.rotate_via_numpy(xyz_occupied[:, 0], xyz_occupied[:, 2],
+																	   np.radians(rotation[1]))
+		xyz_occupied[:, 0], xyz_occupied[:, 1] = vfun.rotate_via_numpy(xyz_occupied[:, 0], xyz_occupied[:, 1],
+																	   np.radians(rotation[2]))
+		xyz_occupied[:, 4], xyz_occupied[:, 5] = vfun.rotate_via_numpy(xyz_occupied[:, 4], xyz_occupied[:, 5],
+																	   np.radians(rotation[0]))
+		xyz_occupied[:, 3], xyz_occupied[:, 5] = vfun.rotate_via_numpy(xyz_occupied[:, 3], xyz_occupied[:, 5],
+																	   np.radians(rotation[1]))
+		xyz_occupied[:, 3], xyz_occupied[:, 4] = vfun.rotate_via_numpy(xyz_occupied[:, 3], xyz_occupied[:, 4],
+																	   np.radians(rotation[2]))
+
+		#		fig = plt.figure()
+		#		ax = fig.gca(projection='3d')
+		#		ax.scatter(xyz_occupied[:, 0], xyz_occupied[:, 1], xyz_occupied[:, 2], c='gray', alpha=0.5)
+		#		ax.quiver(xyz_occupied[:, 0], xyz_occupied[:, 1], xyz_occupied[:, 2], xyz_occupied[:, 3], xyz_occupied[:, 4], xyz_occupied[:, 5], length=0.01)
+		#		ax.scatter(xyz_all[:, 0], xyz_all[:, 1], xyz_all[:, 2], c='gray', alpha=0.5)
+		#		ax.quiver(xyz_all[:, 0], xyz_all[:, 1], xyz_all[:, 2], xyz_all[:, 3], xyz_all[:, 4], xyz_all[:, 5], length=0.01, color="red")
+		#		plt.show()
+
+		xx, yy = map_et_coord(-xyz_all[:, 0], xyz_all[:, 2], xyz_all[:, 1])
+		xx = (np.array(xx).reshape((-1, 1)))
+		yy = (np.array(yy).reshape((-1, 1)))
+		xy = np.concatenate((xx, yy), axis=1)
+
+		xy = pvis.squid_xy_reconstruciton(xyz_all[:, 0:3])
+		#		xy_orig = xy
+
+		center = (np.mean(xy[:, 0]), np.mean(xy[:, 1]))
+		radius = 1.2 * (np.max(xy[:, 0]) - np.min(xy[:, 0])) / 2.0
+
+		picks = []
+		orients = []  # tan or rad
+		signs = []  # -1 or 1, if -1 it is the new generation
+
+		# write prittier code
+		for i, j in enumerate(xyz_occupied):
+			dist = np.sqrt((xyz_all[:, 0] - j[0]) ** 2 + (xyz_all[:, 1] - j[1]) ** 2 + (xyz_all[:, 2] - j[2]) ** 2)
+			pick1 = np.argsort(dist)[0]
+			pick2 = np.argsort(dist)[1]
+
+			norm1 = LA.norm(np.cross(j[0:3], j[3:6]))
+			norm2 = LA.norm(np.cross(xyz_all[pick1, 0:3], xyz_all[pick1, 3:6]))
+			norm3 = LA.norm(np.cross(xyz_all[pick2, 0:3], xyz_all[pick2, 3:6]))
+
+			if abs(norm1 - norm2) < abs(norm1 - norm3):
+				picks.append(pick1)
+				dist1 = vfun.dist_two_points(j[3:6], xyz_all[pick1, 3:6])
+				dist2 = vfun.dist_two_points(-j[3:6], xyz_all[pick1, 3:6])
+				if dist2 < dist1:
+					signs.append(-1)
+				else:
+					signs.append(1)
+
+				if (norm2 < norm3):
+					orients.append("rad")
+				else:
+					orients.append("tan")
+			else:
+				picks.append(pick2)
+				dist1 = vfun.dist_two_points(j[3:6], xyz_all[pick2, 3:6])
+				dist2 = vfun.dist_two_points(-j[3:6], xyz_all[pick2, 3:6])
+				if dist2 < dist1:
+					signs.append(-1)
+				else:
+					signs.append(1)
+
+				if (norm2 < norm3):
+					orients.append("tan")
+				else:
+					orients.append("rad")
+
+		rad_picks = np.where(np.array(orients) == "rad")[0].tolist()
+		tan_picks = np.where(np.array(orients) == "tan")[0].tolist()
+
+		xy_rad = xy[np.array(picks)[rad_picks], :]
+		xy_tan = xy[np.array(picks)[tan_picks], :]
+
+		mag = evoked.data[:, i_time]
+		mag = mag * (10.0 ** 15.0)
+
+		if isinstance(time, list):
+			mag = evoked.data[:, i_time]
+			mag = np.average(mag, axis=1)
+			mag = mag * (10.0 ** 15.0)
+
+		mag = mag * signs
+		# print(signs)
+		mag_rad = mag[rad_picks]
+		mag_tan = mag[tan_picks]
+
+		plot_both = 0
+		if len(rad_picks) > 0 and len(tan_picks) > 0:
+			plot_both = 1
+			if halve != False:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(7, 5))
+			else:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+
+		dx = 0.0
+		dy = 0.0
+
+		if len(rad_picks) > 0:
+			if plot_both == 0:
+				fig, ax1 = plt.subplots()
+			x_min = min(xy_rad[:, 0])
+			x_max = max(xy_rad[:, 0])
+			y_min = min(xy_rad[:, 1])
+			y_max = max(xy_rad[:, 1])
+			nx, ny = 200, 200
+
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_rad = xi
+			yi_rad = yi
+			zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
+
+			ax1.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax1, 350, halve=halve)
+			ax1.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
+			im11 = ax1.pcolormesh(xi_rad - dx, yi_rad + dx, zi_rad, cmap=plt.get_cmap('hot'))
+			im21 = ax1.contour(xi_rad - dx, yi_rad + dx, zi_rad, colors="black")
+			im = ax1.scatter(xy_rad[:, 0] - dx, xy_rad[:, 1] + dy, s=2, c="black")
+			clb1 = fig.colorbar(im11, shrink=0.8, extend='both', ax=ax1)
+			clb1.ax.tick_params(labelsize=30)
+			clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			ax1.set_title("$\mathrm{radial}$", fontsize=30)
+			ax1.axis('off')
+
+		if len(tan_picks) > 0:
+			if plot_both == 0:
+				fig, ax2 = plt.subplots()
+			x_min = min(xy_tan[:, 0])
+			x_max = max(xy_tan[:, 0])
+			y_min = min(xy_tan[:, 1])
+			y_max = max(xy_tan[:, 1])
+			nx, ny = 200, 200
+
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_tan = xi
+			yi_tan = yi
+			zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
+
+			ax2.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax2, 350, halve=halve)
+			ax2.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
+			im12 = ax2.pcolormesh(xi_tan - dx, yi_tan + dx, zi_tan, cmap=plt.get_cmap('hot'))
+			im22 = ax2.contour(xi_tan - dx, yi_tan + dx, zi_tan, colors="black")
+			im = ax2.scatter(xy_tan[:, 0] - dx, xy_tan[:, 1] + dy, s=2, c="black")
+			clb2 = fig.colorbar(im12, shrink=0.8, extend='both', ax=ax2)
+			clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			clb2.ax.tick_params(labelsize=30)
+			ax2.set_title("$\mathrm{tangential}$", fontsize=30)
+			ax2.axis('off')
+
+		fig.tight_layout()
+	#		plt.rc('font', family='serif')
+
+	return fig, picks, i_time, rad_picks, tan_picks
+
+
+def plot_topo_v3(evoked, data_path, block_name, system, time, subject_dir, realpicks = None, halve=False):
+	import mne
+	import matplotlib.pyplot as plt
+	import matplotlib.cbook as cbook
+	import numpy as np
+	import megtools.pyread_biosig as pbio
+	import megtools.pymeg_visualize as pvis
+	import megtools.vector_functions as vfun
+	from scipy.interpolate import griddata
+	import matplotlib.mlab as ml
+	from mpl_toolkits.mplot3d import Axes3D
+	from numpy import linalg as LA
+
+	from matplotlib import rc
+	# rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+	## for Palatino and other serif fonts use:
+	# rc('font',**{'family':'serif','serif':['Palatino']})
+	rc('text', usetex=True)
 
 	# import os
 	# os.environ["PATH"] += os.pathsep + '/usr/local/texlive/2015/bin/x86_64-darwin'
@@ -137,7 +367,7 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 		evoked.pick(realpicks)
 	else:
 		evoked = evoked.copy()
-		evoked.pick_types(meg=True, exclude='bads')
+		# evoked.pick_types(meg=True) #, exclude='bads')
 
 	if isinstance(time, list):
 		max_i_time = np.argsort(abs(evoked.times - max(time)))[0]
@@ -196,9 +426,10 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 
 		xy = pvis.squid_xy_reconstruciton(xyz_all[:, 0:3])
 #		xy_orig = xy
+		xy1 = pvis.squid_xy_reconstruciton(xyz_occupied[:, 0:3])
 
-		center = (np.mean(xy[:,0]), np.mean(xy[:,1]))
-		radius = 1.2*(np.max(xy[:,0])-np.min(xy[:,0]))/2.0
+		center = (np.min(xy1[:,0]), np.mean(xy1[:,1]))
+		radius = 3.5*(np.max(xy1[:,0])-np.min(xy1[:,0]))/2.0
 
 		picks = []
 		orients = []  # tan or rad
@@ -332,6 +563,253 @@ def plot_topo_v2(evoked, data_path, block_name, system, time, subject_dir, realp
 
 	return fig, picks, i_time, rad_picks, tan_picks
 
+
+def plot_topo_v4(evoked, data_path, block_name, system, time, subject_dir, realpicks=None, halve=False):
+	import mne
+	import matplotlib.pyplot as plt
+	import matplotlib.cbook as cbook
+	import numpy as np
+	import megtools.pyread_biosig as pbio
+	import megtools.pymeg_visualize as pvis
+	import megtools.vector_functions as vfun
+	from scipy.interpolate import griddata
+	import matplotlib.mlab as ml
+	from mpl_toolkits.mplot3d import Axes3D
+	from numpy import linalg as LA
+
+	from matplotlib import rc
+	# rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+	## for Palatino and other serif fonts use:
+	# rc('font',**{'family':'serif','serif':['Palatino']})
+	rc('text', usetex=True)
+
+	# import os
+	# os.environ["PATH"] += os.pathsep + '/usr/local/texlive/2015/bin/x86_64-darwin'
+	# print(os.getenv("PATH"))
+
+	if realpicks != None:
+		#		chosen = evoked.ch_names[realpicks]
+		evoked = evoked.copy()
+		evoked.pick(realpicks)
+	else:
+		evoked = evoked.copy()
+		# evoked.pick_types(meg=True, exclude='bads')
+
+	if isinstance(time, list):
+		max_i_time = np.argsort(abs(evoked.times - max(time)))[0]
+		min_i_time = np.argsort(abs(evoked.times - min(time)))[0]
+		i_time = np.arange(min_i_time, max_i_time + 1)
+	elif isinstance(time, float):
+		i_time = np.argsort(abs(evoked.times - time))[0]
+
+	if system == "OPM":
+		sens_all_path = data_path + "/sensorholders/" + block_name[0:4] + "_sensor_pos_ori_all.txt"
+		xyz_all = pbio.imp_sensor_holders(sens_all_path)
+		xyz_all[:, 0:3] = xyz_all[:, 0:3] / 1000.0
+		xyz_all[:, 3:6] = -xyz_all[:, 3:6]
+
+		rotation, translation = pbio.import_opm_trans(data_path + "/MEG/opm_trans.txt", block_name[0:4])
+		translation = translation / 1000.0
+
+		unit_v = np.array([0.0, 0.0, 1.0])
+		xyz_occupied = np.zeros((len(evoked.ch_names), 6))
+		channelnames = []
+		for i in range(len(evoked.ch_names)):
+			channelnames.append(evoked.info['chs'][i]['ch_name'])
+			xyz = evoked.info['chs'][i]['loc']
+			rot_matrix = np.array(([xyz[3], xyz[4], xyz[5]], [xyz[6], xyz[7], xyz[8]], [xyz[9], xyz[10], xyz[11]]))
+			vector = np.dot(unit_v, rot_matrix)
+			xyz_occupied[i, 0:3] = xyz[0:3]
+			xyz_occupied[i, 3:6] = vector
+		channelnames = np.array(channelnames)
+
+		surf = mne.read_surface(subject_dir + block_name[0:4] + "/surf/" + "lh.white", read_metadata=True)
+		xyz_occupied[:, 0:3] = xyz_occupied[:, 0:3] + (surf[2]['cras'] / 1000.0)
+
+		xyz_occupied[:, 0] = xyz_occupied[:, 0] + translation[0]
+		xyz_occupied[:, 1] = xyz_occupied[:, 1] + translation[1]
+		xyz_occupied[:, 2] = xyz_occupied[:, 2] + translation[2]
+
+		xyz_occupied[:, 1], xyz_occupied[:, 2] = vfun.rotate_via_numpy(xyz_occupied[:, 1], xyz_occupied[:, 2],
+																	   np.radians(rotation[0]))
+		xyz_occupied[:, 0], xyz_occupied[:, 2] = vfun.rotate_via_numpy(xyz_occupied[:, 0], xyz_occupied[:, 2],
+																	   np.radians(rotation[1]))
+		xyz_occupied[:, 0], xyz_occupied[:, 1] = vfun.rotate_via_numpy(xyz_occupied[:, 0], xyz_occupied[:, 1],
+																	   np.radians(rotation[2]))
+		xyz_occupied[:, 4], xyz_occupied[:, 5] = vfun.rotate_via_numpy(xyz_occupied[:, 4], xyz_occupied[:, 5],
+																	   np.radians(rotation[0]))
+		xyz_occupied[:, 3], xyz_occupied[:, 5] = vfun.rotate_via_numpy(xyz_occupied[:, 3], xyz_occupied[:, 5],
+																	   np.radians(rotation[1]))
+		xyz_occupied[:, 3], xyz_occupied[:, 4] = vfun.rotate_via_numpy(xyz_occupied[:, 3], xyz_occupied[:, 4],
+																	   np.radians(rotation[2]))
+
+		#		fig = plt.figure()
+		#		ax = fig.gca(projection='3d')
+		#		ax.scatter(xyz_occupied[:, 0], xyz_occupied[:, 1], xyz_occupied[:, 2], c='gray', alpha=0.5)
+		#		ax.quiver(xyz_occupied[:, 0], xyz_occupied[:, 1], xyz_occupied[:, 2], xyz_occupied[:, 3], xyz_occupied[:, 4], xyz_occupied[:, 5], length=0.01)
+		#		ax.scatter(xyz_all[:, 0], xyz_all[:, 1], xyz_all[:, 2], c='gray', alpha=0.5)
+		#		ax.quiver(xyz_all[:, 0], xyz_all[:, 1], xyz_all[:, 2], xyz_all[:, 3], xyz_all[:, 4], xyz_all[:, 5], length=0.01, color="red")
+		#		plt.show()
+
+		xx, yy = map_et_coord(-xyz_all[:, 0], xyz_all[:, 2], xyz_all[:, 1])
+		xx = (np.array(xx).reshape((-1, 1)))
+		yy = (np.array(yy).reshape((-1, 1)))
+		xy = np.concatenate((xx, yy), axis=1)
+
+		xy = pvis.squid_xy_reconstruciton(xyz_all[:, 0:3])
+		#		xy_orig = xy
+
+		center = (np.mean(xy[:, 0]), np.mean(xy[:, 1]))
+		radius = 1.2 * (np.max(xy[:, 0]) - np.min(xy[:, 0])) / 2.0
+
+		picks = []
+		orients = []  # tan or rad
+		signs = []  # -1 or 1, if -1 it is the new generation
+
+		# write prittier code
+		for i, j in enumerate(xyz_occupied):
+			dist = np.sqrt((xyz_all[:, 0] - j[0]) ** 2 + (xyz_all[:, 1] - j[1]) ** 2 + (xyz_all[:, 2] - j[2]) ** 2)
+			pick1 = np.argsort(dist)[0]
+			pick2 = np.argsort(dist)[1]
+
+			norm1 = LA.norm(np.cross(j[0:3], j[3:6]))
+			norm2 = LA.norm(np.cross(xyz_all[pick1, 0:3], xyz_all[pick1, 3:6]))
+			norm3 = LA.norm(np.cross(xyz_all[pick2, 0:3], xyz_all[pick2, 3:6]))
+
+			if abs(norm1 - norm2) < abs(norm1 - norm3):
+				picks.append(pick1)
+				dist1 = vfun.dist_two_points(j[3:6], xyz_all[pick1, 3:6])
+				dist2 = vfun.dist_two_points(-j[3:6], xyz_all[pick1, 3:6])
+				if dist2 < dist1:
+					signs.append(-1)
+				else:
+					signs.append(1)
+
+				if (norm2 < norm3):
+					orients.append("rad")
+				else:
+					orients.append("tan")
+			else:
+				picks.append(pick2)
+				dist1 = vfun.dist_two_points(j[3:6], xyz_all[pick2, 3:6])
+				dist2 = vfun.dist_two_points(-j[3:6], xyz_all[pick2, 3:6])
+				if dist2 < dist1:
+					signs.append(-1)
+				else:
+					signs.append(1)
+
+				if (norm2 < norm3):
+					orients.append("tan")
+				else:
+					orients.append("rad")
+
+		rad_picks = np.where(np.array(orients) == "rad")[0].tolist()
+		tan_picks = np.where(np.array(orients) == "tan")[0].tolist()
+
+		xy_rad = xy[np.array(picks)[rad_picks], :]
+		xy_tan = xy[np.array(picks)[tan_picks], :]
+
+		mag = evoked.data[:, i_time]
+		mag = mag * (10.0 ** 15.0)
+
+		if isinstance(time, list):
+			mag = evoked.data[:, i_time]
+			mag = np.average(mag, axis=1)
+			mag = mag * (10.0 ** 15.0)
+
+		mag = mag * signs
+		# print(signs)
+		mag_rad = mag[rad_picks]
+		mag_tan = mag[tan_picks]
+
+		plot_both = 0
+		if len(rad_picks) > 0 and len(tan_picks) > 0:
+			plot_both = 1
+			if halve != False:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(7, 5))
+			else:
+				fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+
+		dx = 0.0
+		dy = 0.0
+
+		if len(rad_picks) > 0:
+			if plot_both == 0:
+				fig, ax1 = plt.subplots()
+			x_min = min(xy_rad[:, 0])
+			x_max = max(xy_rad[:, 0])
+			y_min = min(xy_rad[:, 1])
+			y_max = max(xy_rad[:, 1])
+			nx, ny = 200, 200
+
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_rad = xi
+			yi_rad = yi
+			zi_rad = griddata((xy_rad[:, 0], xy_rad[:, 1]), mag_rad, (xi, yi), method='cubic')
+
+			ax1.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax1, 350, halve=True)
+			ax1.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
+			im11 = ax1.pcolormesh(xi_rad - dx, yi_rad + dx, zi_rad, cmap=plt.get_cmap('hot'))
+			im21 = ax1.contour(xi_rad - dx, yi_rad + dx, zi_rad, colors="black")
+			im = ax1.scatter(xy_rad[:, 0] - dx, xy_rad[:, 1] + dy, s=2, c="black")
+			clb1 = fig.colorbar(im11, shrink=0.8, extend='both', ax=ax1)
+			clb1.ax.tick_params(labelsize=30)
+			clb1.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			ax1.set_title("$\mathrm{radial}$", fontsize=30)
+			ax1.set_xlim(min(xy_tan[:, 0]) - dx, max(xy_circle[:, 0]) + dx)
+			k = max(xy_circle[:, 0]) - min(xy_rad[:, 0])
+			ax1.set_ylim(min(xy_rad[:, 1]) - 0.2 * k, max(xy_rad[:, 1]) + 0.2 *k)
+			ax1.axis('off')
+
+		if len(tan_picks) > 0:
+			if plot_both == 0:
+				fig, ax2 = plt.subplots()
+			x_min = min(xy_tan[:, 0])
+			x_max = max(xy_tan[:, 0])
+			y_min = min(xy_tan[:, 1])
+			y_max = max(xy_tan[:, 1])
+			nx, ny = 200, 200
+
+			xi = np.linspace(x_min, x_max, nx)
+			yi = np.linspace(y_min, y_max, ny)
+			xi, yi = np.meshgrid(xi, yi)
+			xi_tan = xi
+			yi_tan = yi
+			zi_tan = griddata((xy_tan[:, 0], xy_tan[:, 1]), mag_tan, (xi, yi), method='cubic')
+
+			ax2.set(adjustable='box', aspect='equal')
+			patch, xy_circle = cut_circle_patch(center, radius, ax2, 350, halve=True)
+			ax2.plot(xy_circle[:, 0], xy_circle[:, 1], '-k', linewidth=2)
+			# zi_tan_new = np.copy(zi_tan)
+			# import math
+			# for l, i in enumerate(zi_tan_new):
+			# 	for k, j in enumerate(i):
+			# 		if math.isnan(j):
+			# 			None
+			# 		else:
+			# 			zi_tan_new[l,k]=1
+			im12 = ax2.pcolormesh(xi_tan - dx, yi_tan + dx, zi_tan, cmap= plt.get_cmap('hot'))
+			im22 = ax2.contour(xi_tan - dx, yi_tan + dx, zi_tan, colors="black")
+			im = ax2.scatter(xy_tan[:, 0] - dx, xy_tan[:, 1] + dy, s=2, c="black")
+			clb2 = fig.colorbar(im12, shrink=0.8, extend='both', ax=ax2)
+			clb2.ax.set_title('$B [\mathrm{fT}]$', fontsize=30)
+			clb2.ax.tick_params(labelsize=30)
+			ax2.set_title("$\mathrm{tangential}$", fontsize=30)
+			ax2.set_xlim(min(xy_tan[:, 0]) - dx, max(xy_circle[:, 0]) + dx)
+			k = max(xy_circle[:, 0]) - min(xy_tan[:, 0])
+			ax2.set_ylim(min(xy_tan[:, 1]) - 0.2 * k, max(xy_tan[:, 1]) + 0.2 *k)
+			ax2.axis('off')
+
+
+
+		fig.tight_layout()
+		# plt.show()
+	#		plt.rc('font', family='serif')
+
+	return fig, picks, i_time, rad_picks, tan_picks
 
 
 def plot_topo(evoked, data_path, block_name, system, time, position=None, multi=None, endalign=None):
