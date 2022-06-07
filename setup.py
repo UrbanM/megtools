@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='megtools',
-    version='0.2',
+    version='0.21',
     description='A python package for working with MEG data i. e. source localization, preprocessing, vector calculations etc.',
     url='https://github.com/UrbanM/megtools',
     author='Urban Marhl',
