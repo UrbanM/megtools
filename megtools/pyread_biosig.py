@@ -342,16 +342,16 @@ def imp_trans_matrix(fn):
 
 	return trans_matrix
 
-def imp_samp_freq(fn):
+def imp_samp_freq(fn, encoding="utf-8"):
 	import re
 	import numpy
 	import string
 
-	num_lines = sum(1 for line in open(fn))
+	num_lines = sum(1 for line in open(fn, encoding=encoding))
 
 	search = 'sampling_exponent='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -361,7 +361,7 @@ def imp_samp_freq(fn):
 
 	search = 'sampling_step='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -372,16 +372,16 @@ def imp_samp_freq(fn):
 	return sa_st * 10 ** (sa_ex)
 
 
-def imp_hdr_param(fn):
+def imp_hdr_param(fn, encoding="utf-8"):
 	import re
 	import numpy
 	import string
 
-	num_lines = sum(1 for line in open(fn))
+	num_lines = sum(1 for line in open(fn, encoding=encoding))
 
 	search = 'number_of_samples='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -391,7 +391,7 @@ def imp_hdr_param(fn):
 
 	search = 'number_of_channels='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -401,7 +401,7 @@ def imp_hdr_param(fn):
 
 	search = 'number_of_sensors='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -411,7 +411,7 @@ def imp_hdr_param(fn):
 
 	search = 'number_of_groups='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -421,7 +421,7 @@ def imp_hdr_param(fn):
 
 	search = 'number_of_modules='
 	i = 0
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	while i < num_lines:
 		f = F.readline()
 		if search in f:
@@ -432,7 +432,7 @@ def imp_hdr_param(fn):
 	return no_sa, no_ch, no_se, no_gr, no_mo
 
 
-def imp_param_channels(fn):
+def imp_param_channels(fn, encoding="utf-8"):
 	# STRUCTUR OF channels
 	# seq id u name calib grd grd_name grp n_sensors
 	#
@@ -441,9 +441,9 @@ def imp_param_channels(fn):
 
 	search = 'parameter_of_channels={'
 	end = '}'
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	channels = []
-	num_lines = sum(1 for line in open(fn))
+	num_lines = sum(1 for line in open(fn, encoding=encoding))
 
 	i = 0
 	while i < num_lines:
@@ -467,7 +467,7 @@ def imp_param_channels(fn):
 	return channels
 
 
-def imp_param_sensors(fn):
+def imp_param_sensors(fn, encoding="utf-8"):
 	# STRUCTUR OF sensors
 	# id  name	 type mod	x	 y	 z	 a	 b	 c	area
 	#
@@ -476,9 +476,9 @@ def imp_param_sensors(fn):
 
 	search = 'parameter_of_sensors={'
 	end = '}'
-	F = open(fn, 'r')
+	F = open(fn, 'r', encoding=encoding)
 	sensors = []
-	num_lines = sum(1 for line in open(fn))
+	num_lines = sum(1 for line in open(fn, encoding=encoding))
 	i = 0
 	while i < num_lines:
 		f = F.readline()
@@ -561,9 +561,9 @@ def imp_param_modules(fn):
 	return modules
 
 
-def imp_bin_data(fn1, fn2):
+def imp_bin_data(fn1, fn2, encoding="utf-8"):
 	import numpy
-	no_sa, no_ch, no_se, no_gr, no_mo = imp_hdr_param(fn2)
+	no_sa, no_ch, no_se, no_gr, no_mo = imp_hdr_param(fn2, encoding=encoding)
 	data = numpy.fromfile(fn1, dtype=numpy.float32)
 	nl = float(len(data)) / float(no_ch)
 	nl = int(nl)
@@ -742,10 +742,10 @@ def import_triger(header_name, value_name):
 	return trig
 
 
-def import_time(header_name):
+def import_time(header_name, encoding="utf-8"):
 	import numpy as np
-	sfreq = (imp_samp_freq(header_name))
-	sam_num = imp_hdr_param(header_name)[0]
+	sfreq = (imp_samp_freq(header_name, encoding=encoding))
+	sam_num = imp_hdr_param(header_name, encoding=encoding)[0]
 	time = np.arange(sam_num) * sfreq
 	return time
 
@@ -961,7 +961,7 @@ def imp_sensor_occupied(fn):
 
 	holders = [a + b for a,b in zip(sensors,orientations)]
 
-	return np.array(holders).astype(np.float)
+	return np.array(holders).astype(float)
 
 
 def imp_sensor_uniform(fn):
